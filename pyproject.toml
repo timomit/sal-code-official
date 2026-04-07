@@ -29,5 +29,5 @@ exclude = '''
 [tool.pytest.ini_options]
 timeout = 60
 markers = [
-    "slow: spiking simulations with long runtimes (run with --run-slow)",
+    "pytorch: requires PyTorch CNN training, slow on CPU (run with --pytorch)",
 ]

@@ -90,6 +90,6 @@ rdd:
     use_fa_conv_layers: False
     use_scfa: False
   rdd_params:
-    rdd_time: 90
+    rdd_time: 15
     use_rdd: True
     every_epoch: True

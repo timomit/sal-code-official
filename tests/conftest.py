@@ -8,18 +8,27 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--run-slow",
+        "--pytorch",
         action="store_true",
         default=False,
-        help="Run slow tests (SAL/RDD spiking simulations).",
+        help="Run tests that require PyTorch CNN training (slow on CPU, skipped in CI).",
+    )
+    parser.addoption(
+        "--sections",
+        type=str,
+        default="bp",
+        help=(
+            "Comma-separated list of main_salnet sections to test "
+            "(e.g. --sections bp,fa,sal). Use 'all' for every section."
+        ),
     )
 
 
 def pytest_collection_modifyitems(config, items):
-    if not config.getoption("--run-slow"):
-        skip_slow = pytest.mark.skip(
-            reason="slow test — run with --run-slow to include"
+    if not config.getoption("--pytorch"):
+        skip = pytest.mark.skip(
+            reason="PyTorch training test — run with --pytorch to include"
         )
         for item in items:
-            if "slow" in item.keywords:
-                item.add_marker(skip_slow)
+            if "pytorch" in item.keywords:
+                item.add_marker(skip)
