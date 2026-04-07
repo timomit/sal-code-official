@@ -24,12 +24,13 @@ def test_salnet_symm(tmp_path):
             "1",
             "--len_epoch",
             "100",
+            "--output-dir",
+            str(tmp_path),
             "--tags",
             "smoketest",
         ],
         capture_output=True,
         text=True,
-        cwd=str(tmp_path),
     )
 
     assert result.returncode == 0, (
