@@ -28,3 +28,6 @@ exclude = '''
 
 [tool.pytest.ini_options]
 timeout = 60
+markers = [
+    "slow: spiking simulations with long runtimes (run with --run-slow)",
+]
