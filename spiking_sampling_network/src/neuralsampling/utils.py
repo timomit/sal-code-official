@@ -13,15 +13,17 @@ StrPath: TypeAlias = Path | str
 ParamDict: TypeAlias = dict  # TODO
 
 
-def logistic(x, x0, alpha):
+# FIXME: delete?
+def _logistic(x, x0, alpha):
     """
     logistic function, shifted hy x0 and scaled by alpha
     """
     return 1.0 / (1.0 + np.exp(-(x - x0) / alpha))
 
 
+# NOTE: keep
 @numba.jit(nopython=True)
-def get_states_from_spikes(
+def get_states_from_spikes(  # NOTE used in network
     number_of_neurons: int, spikes, taurefs, dt: float, duration: float = 0.0
 ):
     """
@@ -96,6 +98,7 @@ def get_states_from_spikes(
         return np.zeros((2, number_of_neurons))
 
 
+# NOTE: keep
 def number_to_state(number, nNeurons):
     """
     Returns the state corresponding to a given index
@@ -111,7 +114,8 @@ def number_to_state(number, nNeurons):
     return state
 
 
-def bm_to_probs(W, b, force=False):
+# NOTE: keep
+def bm_to_probs(W, b, force=False):  # NOTE used in network
     """Calculate the the probability distribution, the marginals of the single
     neurons and the pariwise joint distributions for an abstract Boltzmann
     machine analytically
@@ -156,7 +160,8 @@ def bm_to_probs(W, b, force=False):
     return [probs, statesArr, coactivation]
 
 
-def vis_distr_from_rbm(n_vis, n_hid, weights, bias):
+# FIXME: delete
+def _vis_distr_from_rbm(n_vis, n_hid, weights, bias):
     """Calculate the joint distribution of the visibles in a RBM
 
     Arguments:
@@ -195,14 +200,16 @@ def vis_distr_from_rbm(n_vis, n_hid, weights, bias):
     return all_vis_joint_prob, all_vis_states
 
 
-def list_of_states(num_neurons):
+# NOTE: keep
+def list_of_states(num_neurons):  # NOTE used in network
     """
     create a list of all possible states
     """
     return list(product(range(2), repeat=num_neurons))
 
 
-def distr_from_states(sampledStates, states):
+# NOTE: keep
+def distr_from_states(sampledStates, states):  # NOTE used in network
     """
     Calculate the probabilities of the joint states, from sampled states.
 
@@ -254,8 +261,9 @@ def distr_from_states(sampledStates, states):
     return prob
 
 
+# NOTE: keep
 @numba.njit()
-def calc_coact_from_states(states):
+def calc_coact_from_states(states):  # NOTE used in network
     """Calc the coactivation and the marginals from binary states"""
     num_samples, num_neurons = states.shape
     coact = np.zeros((num_neurons, num_neurons))
@@ -267,14 +275,16 @@ def calc_coact_from_states(states):
     return coact, marginals
 
 
-def calc_dkl(p, q):
+# NOTE: keep
+def calc_dkl(p, q):  # NOTE used in network, train_bm, train_bm_neptune_hpo
     """
     Kullback-Leibler divergence
     """
     return np.sum(p * np.log(p / q))
 
 
-def ordered_spikes_to_list(ordered_spikes, neuron_ids):
+# NOTE: keep
+def ordered_spikes_to_list(ordered_spikes, neuron_ids):  # NOTE used in network
     """Turn a ordered spikes array into a list of spike arrays
 
     Ordered spikes contains a two-dim numpy array, where the first entry stores
@@ -292,7 +302,10 @@ def ordered_spikes_to_list(ordered_spikes, neuron_ids):
     return spike_list
 
 
-def spike_rate(ordered_spikes, nrn_ids, t_max=None, timeunit="ms"):
+# NOTE: keep
+def spike_rate(
+    ordered_spikes, nrn_ids, t_max=None, timeunit="ms"
+):  # NOTE used in eisystem
     """Calculate the mean spike rates from an ordered spike train.
 
     Asumes that the spike times are given in milli seconds. Also returns rates in
@@ -313,7 +326,8 @@ def spike_rate(ordered_spikes, nrn_ids, t_max=None, timeunit="ms"):
     return np.array(rates)
 
 
-def prettyprint_distribution(list_of_states, *distributions):
+# NOTE: keep
+def prettyprint_distribution(list_of_states, *distributions):  # NOTE used in network
     """pretty print the distribution
 
     one hast to pass a list of states array and one or many distributions
@@ -322,7 +336,8 @@ def prettyprint_distribution(list_of_states, *distributions):
         print(*elements)
 
 
-def rasterplot(spike_arrays, neuron_ids, colors=None, zoom=None, savefig=None):
+# FIXME: delete
+def _rasterplot(spike_arrays, neuron_ids, colors=None, zoom=None, savefig=None):
     """Plot a spike rasterplot
 
     Plots a raster plot for spike trains.
@@ -369,7 +384,8 @@ def rasterplot(spike_arrays, neuron_ids, colors=None, zoom=None, savefig=None):
     return fig, ax
 
 
-def plot_distr(
+# NOTE: keep
+def plot_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
     ax: plt.Axes,
     distrs: List[np.ndarray],
     los: List[str],
@@ -434,14 +450,18 @@ def plot_distr(
     return ax
 
 
-def load_paramfile(path: StrPath) -> ParamDict:
+# NOTE: keep
+def load_paramfile(
+    path: StrPath,
+) -> ParamDict:  # NOTE used in train_bm, train_bm_neptune_hpo
     """DOCSTRING."""
     with open(path, "r") as f:
         params = yaml.safe_load(f)
         return params
 
 
-def create_training_pattern(
+# FIXME: delete
+def _create_training_pattern(
     num: int,
     distr: npt.NDArray,
     pattern_seed: Optional[int] = None,
@@ -457,7 +477,8 @@ def create_training_pattern(
     return pattern
 
 
-def create_distr_from_uniform(
+# FIXME: delete
+def _create_distr_from_uniform(
     dim: int, distr_seed: Optional[int] = None
 ) -> npt.NDArray:
     """DOSCTRING."""
@@ -468,13 +489,15 @@ def create_distr_from_uniform(
     return distr
 
 
-def restrict(w: npt.NDArray, dim_vis: int) -> None:
+# FIXME: delete
+def _restrict(w: npt.NDArray, dim_vis: int) -> None:
     """DOCSTRING."""
     w[:dim_vis, :dim_vis] = 0.0
     w[dim_vis:, dim_vis:] = 0.0
 
 
-def create_rbm_weights(dim_vis: int, dim_hid: int, w: npt.NDArray) -> npt.NDArray:
+# FIXME: delete
+def _create_rbm_weights(dim_vis: int, dim_hid: int, w: npt.NDArray) -> npt.NDArray:
     """DOCSTRING."""
     dim = dim_vis + dim_hid
     for i in range(dim):
@@ -484,7 +507,8 @@ def create_rbm_weights(dim_vis: int, dim_hid: int, w: npt.NDArray) -> npt.NDArra
     return w
 
 
-def check_in(array_1d: npt.NDArray, array_2d: npt.NDArray, axis: int = 1) -> bool:
+# FIXME: delete
+def _check_in(array_1d: npt.NDArray, array_2d: npt.NDArray, axis: int = 1) -> bool:
     """Check if array_1d is contained in array_2d along axis."""
     return np.any(
         np.apply_along_axis(
@@ -493,7 +517,8 @@ def check_in(array_1d: npt.NDArray, array_2d: npt.NDArray, axis: int = 1) -> boo
     )
 
 
-def check_training_data(
+# FIXME: delete
+def _check_training_data(
     distr: npt.NDArray, pattern: npt.NDArray
 ) -> tuple[float, npt.NDArray]:
     """
@@ -531,7 +556,8 @@ def check_training_data(
     return dkl, pat_distr
 
 
-def draw_trunc_distr(
+# NOTE: keep
+def draw_trunc_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
     generator: Callable, high: float, low: float, size: Tuple[int], kwargs: dict = {}
 ):
     """
@@ -573,7 +599,10 @@ def draw_trunc_distr(
     return res.reshape(size)
 
 
-def copy_triu(arr: npt.NDArray) -> npt.NDArray:
+# NOTE: keep
+def copy_triu(
+    arr: npt.NDArray,
+) -> npt.NDArray:  # NOTE used in train_bm, train_bm_neptune_hpo
     """Copy the upper triangular part of a matrix to its lower triangular part.
 
     This function creates a symmetric matrix by copying the upper triangular
@@ -600,6 +629,7 @@ def copy_triu(arr: npt.NDArray) -> npt.NDArray:
     return res + res.T
 
 
+# NOTE: keep
 def copy_tril(arr: npt.NDArray) -> npt.NDArray:
     """Copy the lower triangular part of a matrix to its upper triangular part.
 

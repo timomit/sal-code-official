@@ -29,11 +29,13 @@ StdpFunc: TypeAlias = Callable[[npt.ArrayLike], npt.ArrayLike]
 SimParams: TypeAlias = dict[str, Any]
 
 
+# NOTE: keep
 @numba.njit(cache=False)
 def logistic(x, t_ref):
     return 1.0 / (1.0 + np.exp(-(x - np.log(t_ref))))
 
 
+# NOTE: keep
 @numba.vectorize(cache=False)
 def heaviside(x):
     if x > 0.0:
@@ -43,15 +45,17 @@ def heaviside(x):
 
 
 @numba.njit(cache=False)
-def rect_kernel(x, tau_syn):
+def rect_kernel(x, tau_syn):  # NOTE used in train_bm, train_bm_neptune_hpo
     return heaviside(x) * heaviside(-x + tau_syn)
 
 
+# NOTE: keep
 @numba.njit(cache=False)
 def alpha_kernel(x, tau_ref, tau_syn):
     return heaviside(tau_ref / tau_syn**2 * x * np.exp(-x / tau_syn))
 
 
+# NOTE: keep
 @numba.njit(cache=False)
 def calc_inst_rate(t, last_spikes, bias, weight_mat, t_ref, tau_syn, psp_kernel):
     psps = np.sum(psp_kernel(t - last_spikes, tau_syn), axis=1)
@@ -64,7 +68,7 @@ def calc_inst_rate(t, last_spikes, bias, weight_mat, t_ref, tau_syn, psp_kernel)
 
 
 @numba.njit(cache=False)
-def sim_poisson_neurons(
+def sim_poisson_neurons(  # NOTE used in eisystem
     t_max, psp_kernel, bias, weights, t_ref, tau_syn, num_last_spikes=10
 ):
     num_neurons = len(bias)
@@ -93,6 +97,7 @@ def sim_poisson_neurons(
     return np.array(ordered_spikes)
 
 
+# NOTE: keep
 class NeuralSampler:
     def __init__(
         self, init_weight, init_bias, num_visible, sim_params, rng_seed=424242
@@ -154,7 +159,8 @@ class NeuralSampler:
         self.bias[self.bias < -max_b] = -max_b
 
 
-class NeuralSamplerTrainDistr(NeuralSampler):
+# FIXME: delete
+class _NeuralSamplerTrainDistr(NeuralSampler):
     def __init__(
         self,
         init_weight,
@@ -246,7 +252,8 @@ class NeuralSamplerTrainDistr(NeuralSampler):
             print(f"Time for iteration: {tock - tick}", flush=True)
 
 
-class NeuralSamplerStateTraining(NeuralSampler):
+# FIXME: delete
+class _NeuralSamplerStateTraining(NeuralSampler):
     """docstring for NeuralSamplerStateTraining."""
 
     def __init__(
@@ -385,7 +392,8 @@ class NeuralSamplerStateTraining(NeuralSampler):
             print(f"Time for iteration: {tock - tick}", flush=True)
 
 
-class NeuralSamplerSpikeTraining(NeuralSampler):
+# FIXME delete
+class _NeuralSamplerSpikeTraining(NeuralSampler):
     """docstring for NeuralSamplerSpikeTraining."""
 
     def __init__(
@@ -642,7 +650,9 @@ class NeuralSamplerSpikeTraining(NeuralSampler):
                 break
 
 
-class NeuralSamplerFullyConnected(NeuralSampler):
+class NeuralSamplerFullyConnected(
+    NeuralSampler
+):  # NOTE used in train_bm, train_bm_neptune_hpo
     """
     A fully connected neural sampler class that extends the base NeuralSampler.
 
@@ -893,7 +903,7 @@ class NeuralSamplerFullyConnected(NeuralSampler):
                 break
 
 
-class GradDescent(object):
+class GradDescent(object):  # NOTE used in train_bm, train_bm_neptune_hpo
     """Stupid gardient descent
 
     update = lr * dL/dtheta
