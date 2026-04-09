@@ -1,6 +1,5 @@
 """DOCSTRIG."""
 
-# NOTE: keep eveything!
 from typing import Optional
 
 import numba
@@ -8,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 
-def get_first_order_stds(ordered_spikes, num_neurons):  # NOTE used in eisystem
+def get_first_order_stds(ordered_spikes, num_neurons):
     """Obtain the first order spikes timing differences from a list of ordered
     spikes
     """
@@ -31,7 +30,6 @@ def get_first_order_stds(ordered_spikes, num_neurons):  # NOTE used in eisystem
     return interspike_times
 
 
-# NOTE keep
 def get_first_order_stds_2nrn(ordered_spikes, num_neurons):
     """Obtain the dts between two neurons from a list of ordered spikes
 
@@ -69,10 +67,7 @@ def get_first_order_stds_2nrn(ordered_spikes, num_neurons):
     return np.asarray(interspike_times, dtype=np.float32), num_dropped_spikes
 
 
-# @jit(nopython=True)
-def calc_nn_stdp(
-    ordered_spikes, num_neurons, kernel, kernel_args
-):  # NOTE used in eisystem
+def calc_nn_stdp(ordered_spikes, num_neurons, kernel, kernel_args):
     pre_spikes = np.full(num_neurons, -1e10)
     corr_stdp = np.zeros((num_neurons, num_neurons))
     # use the identity matrix, because one has to devide corr_stdp by
@@ -108,9 +103,7 @@ def spike_corr(ordered_spikes, dt, tmax, binsize, nrn_idx=(1, 2)):
 
 
 @numba.jit(nopython=True)
-def spike_corr_function(
-    ordered_spikes, dts, tmax, binsize=0.5, nrn_idx=(1, 2)
-):  # NOTE used in eisystem
+def spike_corr_function(ordered_spikes, dts, tmax, binsize=0.5, nrn_idx=(1, 2)):
     res = np.empty(len(dts))
     for i in numba.prange(len(dts)):
         r = spike_corr(ordered_spikes, dts[i], tmax, binsize, nrn_idx=nrn_idx)
@@ -119,7 +112,7 @@ def spike_corr_function(
 
 
 @numba.njit(cache=False)
-def exp_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):  # NOTE used in eisystem
+def exp_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
     if dt > 0.0:
         return a_plus * np.exp(-dt / tau_plus)
     elif dt < 0.0:
@@ -128,7 +121,6 @@ def exp_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):  # NOTE used in eisyst
         return 0.0
 
 
-# NOTE keep
 @numba.njit()
 def tri_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
     if dt > 0.0 and dt < tau_plus:
@@ -139,7 +131,6 @@ def tri_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
         return 0.0
 
 
-# NOTE keep
 @numba.jit(nopython=True, cache=False)
 def pairbased_stdp(kernel, kernel_args, ordered_spikes, num_neurons, num_last_spikes):
     # traces = np.zeros(num_neurons)
@@ -166,7 +157,6 @@ def pairbased_stdp(kernel, kernel_args, ordered_spikes, num_neurons, num_last_sp
     return stdp
 
 
-# NOTE keep
 @numba.jit(nopython=True, cache=False)
 def noised_pairbased_stdp(
     ordered_spikes: npt.NDArray,
@@ -214,8 +204,7 @@ def noised_pairbased_stdp(
     return stdp
 
 
-# NOTE keep
-class STDPRuler:  # NOTE used in train_bm, train_bm_neptune_hpo
+class STDPRuler:
     """DOCSTRING."""
 
     def __init__(

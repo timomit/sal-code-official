@@ -13,17 +13,8 @@ StrPath: TypeAlias = Path | str
 ParamDict: TypeAlias = dict  # TODO
 
 
-# FIXME: delete?
-def _logistic(x, x0, alpha):
-    """
-    logistic function, shifted hy x0 and scaled by alpha
-    """
-    return 1.0 / (1.0 + np.exp(-(x - x0) / alpha))
-
-
-# NOTE: keep
 @numba.jit(nopython=True)
-def get_states_from_spikes(  # NOTE used in network
+def get_states_from_spikes(
     number_of_neurons: int, spikes, taurefs, dt: float, duration: float = 0.0
 ):
     """
@@ -98,7 +89,6 @@ def get_states_from_spikes(  # NOTE used in network
         return np.zeros((2, number_of_neurons))
 
 
-# NOTE: keep
 def number_to_state(number, nNeurons):
     """
     Returns the state corresponding to a given index
@@ -114,8 +104,7 @@ def number_to_state(number, nNeurons):
     return state
 
 
-# NOTE: keep
-def bm_to_probs(W, b, force=False):  # NOTE used in network
+def bm_to_probs(W, b, force=False):
     """Calculate the the probability distribution, the marginals of the single
     neurons and the pariwise joint distributions for an abstract Boltzmann
     machine analytically
@@ -160,56 +149,14 @@ def bm_to_probs(W, b, force=False):  # NOTE used in network
     return [probs, statesArr, coactivation]
 
 
-# FIXME: delete
-def _vis_distr_from_rbm(n_vis, n_hid, weights, bias):
-    """Calculate the joint distribution of the visibles in a RBM
-
-    Arguments:
-        n_vis (int): number of visible neurons
-        n_hid (int): number of hidden neurons
-        weights (np.ndarray): weight matrix of RBM
-        bias (np.ndarray): bias vector of RBM
-
-    Return:
-        all_vis_joint_prob (np.ndarray): joint probability of the visibles
-        all_vis_states: List of tuples with all visible states.
-    """
-    n_tot = n_vis + n_hid
-    if n_tot > 20:
-        print(f"RBM is very large ({n_tot} neurons)! Computing time my be too long!")
-
-    all_vis_states = list(product(range(2), repeat=n_vis))
-    all_hid_states = list(product(range(2), repeat=n_hid))
-
-    all_vis_joint_prob = np.zeros(2**n_vis)
-    part_func = 0.0  # Normalization factor
-    # iterate over all combinations of hidden states
-    for i, vis_state in enumerate(all_vis_states):
-        prob = 0.0
-        # sum over all combinations of hidden states
-        for hid_state in all_hid_states:
-            state = np.array(vis_state + hid_state)
-            energy = -0.5 * np.dot(state, np.dot(weights, state)) + np.dot(bias, state)
-            prob += np.exp(-energy)
-        part_func += prob
-        all_vis_joint_prob[i] = prob
-
-    # Normalize
-    all_vis_joint_prob /= part_func
-
-    return all_vis_joint_prob, all_vis_states
-
-
-# NOTE: keep
-def list_of_states(num_neurons):  # NOTE used in network
+def list_of_states(num_neurons):
     """
     create a list of all possible states
     """
     return list(product(range(2), repeat=num_neurons))
 
 
-# NOTE: keep
-def distr_from_states(sampledStates, states):  # NOTE used in network
+def distr_from_states(sampledStates, states):
     """
     Calculate the probabilities of the joint states, from sampled states.
 
@@ -261,30 +208,14 @@ def distr_from_states(sampledStates, states):  # NOTE used in network
     return prob
 
 
-# NOTE: keep
-@numba.njit()
-def calc_coact_from_states(states):  # NOTE used in network
-    """Calc the coactivation and the marginals from binary states"""
-    num_samples, num_neurons = states.shape
-    coact = np.zeros((num_neurons, num_neurons))
-    for i in range(num_samples):
-        coact += np.outer(states[i, :], states[i, :])
-    coact /= num_samples
-    marginals = np.diag(coact).copy()
-    np.fill_diagonal(coact, 0.0)
-    return coact, marginals
-
-
-# NOTE: keep
-def calc_dkl(p, q):  # NOTE used in network, train_bm, train_bm_neptune_hpo
+def calc_dkl(p, q):
     """
     Kullback-Leibler divergence
     """
     return np.sum(p * np.log(p / q))
 
 
-# NOTE: keep
-def ordered_spikes_to_list(ordered_spikes, neuron_ids):  # NOTE used in network
+def ordered_spikes_to_list(ordered_spikes, neuron_ids):
     """Turn a ordered spikes array into a list of spike arrays
 
     Ordered spikes contains a two-dim numpy array, where the first entry stores
@@ -302,10 +233,7 @@ def ordered_spikes_to_list(ordered_spikes, neuron_ids):  # NOTE used in network
     return spike_list
 
 
-# NOTE: keep
-def spike_rate(
-    ordered_spikes, nrn_ids, t_max=None, timeunit="ms"
-):  # NOTE used in eisystem
+def spike_rate(ordered_spikes, nrn_ids, t_max=None, timeunit="ms"):
     """Calculate the mean spike rates from an ordered spike train.
 
     Asumes that the spike times are given in milli seconds. Also returns rates in
@@ -326,66 +254,7 @@ def spike_rate(
     return np.array(rates)
 
 
-# NOTE: keep
-def prettyprint_distribution(list_of_states, *distributions):  # NOTE used in network
-    """pretty print the distribution
-
-    one hast to pass a list of states array and one or many distributions
-    """
-    for elements in zip(list_of_states, *distributions):
-        print(*elements)
-
-
-# FIXME: delete
-def _rasterplot(spike_arrays, neuron_ids, colors=None, zoom=None, savefig=None):
-    """Plot a spike rasterplot
-
-    Plots a raster plot for spike trains.
-    Takes a list (must always be a list) of ordered numpy spike arrays in HX style
-    and a list of lists with the corresponding neuron ids.
-    Additionall, one can give list of colors --> each orderd spike array
-    (=group of neurons) gets its own color.
-    Also, one can specify a zoom in form of [t_min, t_max].
-    Save the figure under the name specified in savefig.
-    """
-    assert len(spike_arrays) == len(neuron_ids)
-    if colors is not None:
-        assert len(colors) == len(spike_arrays)
-
-    # turn ordered spikes into lists of spikes:
-    spike_list = []
-    neuron_ids_list = []
-    cs = []
-
-    # if no color is specified, use the standard color for all chucks:
-    if colors is None:
-        colors = ["C0"] * len(spike_arrays)
-    for spk_arr, nrn_ids, c in zip(spike_arrays, neuron_ids, colors):
-        # zoom into the time line:
-        if zoom is not None:
-            zoom_ids = np.where((spk_arr[:, 0] > zoom[0]) & (spk_arr[:, 0] < zoom[1]))
-            spk_arr = spk_arr[zoom_ids]
-        intermediate_spikelist = ordered_spikes_to_list(spk_arr, nrn_ids)
-        for spks, id in zip(intermediate_spikelist, nrn_ids):
-            spike_list.append(spks)
-            neuron_ids_list.append(id)
-            cs.append(c)
-
-    fig, ax = plt.subplots()
-    ax.eventplot(spike_list, lineoffsets=neuron_ids_list, colors=cs)
-    ax.set_xlabel(r"$t_{spikes}$ [ms]")
-    ax.set_ylabel("neuron id")
-
-    if savefig is not None:
-        fig.savefig(savefig, dpi=300)
-    else:
-        plt.show()
-
-    return fig, ax
-
-
-# NOTE: keep
-def plot_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
+def plot_distr(
     ax: plt.Axes,
     distrs: List[np.ndarray],
     los: List[str],
@@ -450,114 +319,16 @@ def plot_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
     return ax
 
 
-# NOTE: keep
 def load_paramfile(
     path: StrPath,
-) -> ParamDict:  # NOTE used in train_bm, train_bm_neptune_hpo
+) -> ParamDict:
     """DOCSTRING."""
     with open(path, "r") as f:
         params = yaml.safe_load(f)
         return params
 
 
-# FIXME: delete
-def _create_training_pattern(
-    num: int,
-    distr: npt.NDArray,
-    pattern_seed: Optional[int] = None,
-) -> tuple[npt.NDArray, npt.NDArray]:
-    """DOCSTRING."""
-
-    dim = int(np.log2(len(distr)))
-    los = list_of_states(dim)
-
-    prng = np.random.default_rng(pattern_seed)
-    pattern = prng.choice(los, size=num, p=distr)
-
-    return pattern
-
-
-# FIXME: delete
-def _create_distr_from_uniform(
-    dim: int, distr_seed: Optional[int] = None
-) -> npt.NDArray:
-    """DOSCTRING."""
-    drng = np.random.default_rng(distr_seed)
-    distr = drng.random(2**dim)
-    distr = distr / np.sum(distr)
-
-    return distr
-
-
-# FIXME: delete
-def _restrict(w: npt.NDArray, dim_vis: int) -> None:
-    """DOCSTRING."""
-    w[:dim_vis, :dim_vis] = 0.0
-    w[dim_vis:, dim_vis:] = 0.0
-
-
-# FIXME: delete
-def _create_rbm_weights(dim_vis: int, dim_hid: int, w: npt.NDArray) -> npt.NDArray:
-    """DOCSTRING."""
-    dim = dim_vis + dim_hid
-    for i in range(dim):
-        for j in range(i + 1, dim):
-            w[j, i] = w[i, j]
-    restrict(w, dim_vis)
-    return w
-
-
-# FIXME: delete
-def _check_in(array_1d: npt.NDArray, array_2d: npt.NDArray, axis: int = 1) -> bool:
-    """Check if array_1d is contained in array_2d along axis."""
-    return np.any(
-        np.apply_along_axis(
-            lambda row: np.array_equal(row, array_1d), axis=axis, arr=array_2d
-        )
-    )
-
-
-# FIXME: delete
-def _check_training_data(
-    distr: npt.NDArray, pattern: npt.NDArray
-) -> tuple[float, npt.NDArray]:
-    """
-    Calculate the Kullback-Leibler divergence between target distribution and samples.
-
-    This function computes the Kullback-Leibler divergence (DKL) between a target
-    distribution and the distribution of sampled patterns. It also handles cases
-    where certain states might not appear in the sampled patterns.
-
-    Parameters
-    ----------
-    distr : npt.NDArray
-        The target distribution. Should be a 1D array representing probabilities
-        for all possible states.
-    pattern : npt.NDArray
-        The sampled patterns. Should be a 2D array where each row represents a
-        sampled state.
-
-    Returns
-    -------
-    tuple[float, npt.NDArray]
-        A tuple containing:
-        - float: The calculated Kullback-Leibler divergence.
-        - npt.NDArray: The empirical distribution of the sampled patterns.
-    """
-    dims = int(np.log2(len(distr)))
-    los = list_of_states(dims)
-    uniques, counts = np.unique(pattern, return_counts=True, axis=0)
-    # check for non_existing:
-    for i, pat in enumerate(los):
-        if not check_in(np.array(pat), uniques):
-            counts = np.insert(counts, i, 0.0)
-    pat_distr = counts / len(pattern)
-    dkl = calc_dkl(distr, pat_distr)
-    return dkl, pat_distr
-
-
-# NOTE: keep
-def draw_trunc_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
+def draw_trunc_distr(
     generator: Callable, high: float, low: float, size: Tuple[int], kwargs: dict = {}
 ):
     """
@@ -599,10 +370,9 @@ def draw_trunc_distr(  # NOTE used in train_bm, train_bm_neptune_hpo
     return res.reshape(size)
 
 
-# NOTE: keep
 def copy_triu(
     arr: npt.NDArray,
-) -> npt.NDArray:  # NOTE used in train_bm, train_bm_neptune_hpo
+) -> npt.NDArray:
     """Copy the upper triangular part of a matrix to its lower triangular part.
 
     This function creates a symmetric matrix by copying the upper triangular
@@ -629,7 +399,6 @@ def copy_triu(
     return res + res.T
 
 
-# NOTE: keep
 def copy_tril(arr: npt.NDArray) -> npt.NDArray:
     """Copy the lower triangular part of a matrix to its upper triangular part.
 
