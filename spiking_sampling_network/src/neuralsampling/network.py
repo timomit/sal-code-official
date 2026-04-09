@@ -4,7 +4,7 @@ Implement neural sampling (Buesing et al. 2011)
 
 import time
 from datetime import datetime
-from typing import Any, Callable, Optional, Tuple, TypeAlias
+from typing import Any, Callable, TypeAlias
 
 import numba
 import numpy as np
@@ -24,12 +24,12 @@ SimParams: TypeAlias = dict[str, Any]
 
 
 @numba.njit(cache=False)
-def logistic(x, t_ref):
+def logistic(x: float, t_ref: float) -> float:
     return 1.0 / (1.0 + np.exp(-(x - np.log(t_ref))))
 
 
 @numba.vectorize(cache=False)
-def heaviside(x):
+def heaviside(x: float) -> float:
     if x > 0.0:
         return 1.0
     else:
@@ -37,17 +37,25 @@ def heaviside(x):
 
 
 @numba.njit(cache=False)
-def rect_kernel(x, tau_syn):
+def rect_kernel(x: float, tau_syn: float) -> float:
     return heaviside(x) * heaviside(-x + tau_syn)
 
 
 @numba.njit(cache=False)
-def alpha_kernel(x, tau_ref, tau_syn):
+def alpha_kernel(x: float, tau_ref: float, tau_syn: float) -> float:
     return heaviside(tau_ref / tau_syn**2 * x * np.exp(-x / tau_syn))
 
 
 @numba.njit(cache=False)
-def calc_inst_rate(t, last_spikes, bias, weight_mat, t_ref, tau_syn, psp_kernel):
+def calc_inst_rate(
+    t: int,
+    last_spikes: npt.NDArray,
+    bias: npt.NDArray,
+    weight_mat: npt.NDArray,
+    t_ref: float,
+    tau_syn: float,
+    psp_kernel: Callable,
+) -> npt.NDArray:
     psps = np.sum(psp_kernel(t - last_spikes, tau_syn), axis=1)
     mem_pot = bias + np.dot(weight_mat, psps)
     inst_rate = logistic(mem_pot, t_ref)
@@ -58,8 +66,14 @@ def calc_inst_rate(t, last_spikes, bias, weight_mat, t_ref, tau_syn, psp_kernel)
 
 @numba.njit(cache=False)
 def sim_poisson_neurons(
-    t_max, psp_kernel, bias, weights, t_ref, tau_syn, num_last_spikes=10
-):
+    t_max: int,
+    psp_kernel: Callable,
+    bias: npt.NDArray,
+    weights: npt.NDArray,
+    t_ref: float,
+    tau_syn: float,
+    num_last_spikes: int = 10,
+) -> npt.NDArray:
     num_neurons = len(bias)
 
     ordered_spikes = []
@@ -88,8 +102,13 @@ def sim_poisson_neurons(
 
 class NeuralSampler:
     def __init__(
-        self, init_weight, init_bias, num_visible, sim_params, rng_seed=424242
-    ):
+        self,
+        init_weight: npt.NDArray,
+        init_bias: npt.NDArray,
+        num_visible: int,
+        sim_params: SimParams,
+        rng_seed: int = 424242,
+    ) -> None:
         np.random.seed(rng_seed)
 
         assert init_weight.shape[0] == init_weight.shape[1]
@@ -108,7 +127,7 @@ class NeuralSampler:
         self.num_last_spikes = sim_params["num_last_spikes"]
         self.rng_seed = rng_seed
 
-    def wake_phase(self, sim_dur, target):
+    def wake_phase(self, sim_dur: int, target: npt.NDArray) -> npt.NDArray:
         bias = np.copy(self.bias)
         bias[: self.num_vis] = (target * 2.0 - 1.0) * 10.0
         spikes = sim_poisson_neurons(
@@ -117,32 +136,32 @@ class NeuralSampler:
 
         return spikes
 
-    def sleep_phase(self, sim_dur):
+    def sleep_phase(self, sim_dur: int) -> npt.NDArray:
         spikes = sim_poisson_neurons(
             sim_dur, self.psp_kernel, self.bias, self.weight, self.t_ref, self.tau_syn
         )
         return spikes
 
-    def spikes_to_states(self, spikes, sim_dur):
+    def spikes_to_states(self, spikes: npt.NDArray, sim_dur: int) -> npt.NDArray:
         t_refs = np.full(self.num_nrns, self.t_ref)
         return get_states_from_spikes(
             self.num_nrns, spikes, t_refs, self.t_ref / 2.0, sim_dur
         )
 
-    def restrict(self, arr):
+    def restrict(self, arr: npt.NDArray) -> npt.NDArray:
         arr[: self.num_vis, : self.num_vis] = 0.0
         arr[self.num_vis :, self.num_vis :] = 0.0
         return arr
 
-    def restrict_weights(self):
+    def restrict_weights(self) -> None:
         self.weight[: self.num_vis, : self.num_vis] = 0.0
         self.weight[self.num_vis :, self.num_vis :] = 0.0
 
-    def clip_weights(self, max_w):
+    def clip_weights(self, max_w: float) -> None:
         self.weight[self.weight > max_w] = max_w
         self.weight[self.weight < -max_w] = -max_w
 
-    def clip_bias(self, max_b):
+    def clip_bias(self, max_b: float) -> None:
         self.bias[self.bias > max_b] = max_b
         self.bias[self.bias < -max_b] = -max_b
 
@@ -203,12 +222,12 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         target_bias: npt.NDArray,
         sim_params: SimParams,
         dur_sleep: int,
-        optimizer_bias: callable,
-        optimizer_weight: callable,
-        optimizer_symm: Optional[callable] = None,
+        optimizer_bias: Callable,
+        optimizer_weight: Callable,
+        optimizer_symm: Callable | None = None,
         max_w: float = 2.0,
         max_b: float = 2.0,
-        rng_seed=424242,
+        rng_seed: int = 424242,
         weight_decay: float | npt.NDArray = 0.0,
     ):
         """Docstring."""
@@ -263,8 +282,8 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         return np.array(rates)
 
     def sleep_phase(
-        self, stdp_rule: StdpFunc, sal_rule: Optional[StdpFunc] = None
-    ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray, Optional[npt.NDArray]]:
+        self, stdp_rule: StdpFunc, sal_rule: StdpFunc | None = None
+    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray | None]:
         """
         Perform a single sleep phase and compute related metrics.
 
@@ -310,7 +329,7 @@ class NeuralSamplerFullyConnected(NeuralSampler):
     def training_iteration(
         self,
         stdp_rule: StdpFunc,
-        sal_rule: Optional[StdpFunc] = None,
+        sal_rule: StdpFunc | None = None,
     ) -> dict:
         sleep_stdp, sleep_rates, sampled_distr, stdp_sal = self.sleep_phase(
             stdp_rule=stdp_rule,
@@ -358,11 +377,11 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         self,
         num_iter: int,
         stdp_rule: StdpFunc,
-        stdp_rule_symm: Optional[StdpFunc] = None,
-        callback=None,
+        stdp_rule_symm: StdpFunc | None = None,
+        callback: Callable | None = None,
         validation_step: int = 1,
         validation_factor: int = 10,
-    ):
+    ) -> None:
         for step in range(num_iter):
             # every validation_step-th iteration change the sleep duration,
             # but not if validation_step == 1
@@ -404,11 +423,11 @@ class GradDescent(object):
     update = lr * dL/dtheta
     """
 
-    def __init__(self, lr):
+    def __init__(self, lr: float) -> None:
         self.lr = lr
 
-    def update(self, grad):
+    def update(self, grad: npt.NDArray) -> npt.NDArray:
         return self.lr * grad
 
-    def __call__(self, grad):
+    def __call__(self, grad: npt.NDArray) -> npt.NDArray:
         return self.update(grad)

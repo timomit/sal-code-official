@@ -1,13 +1,15 @@
 """DOCSTRIG."""
 
-from typing import Optional
+from typing import Callable
 
 import numba
 import numpy as np
 import numpy.typing as npt
 
 
-def get_first_order_stds(ordered_spikes, num_neurons):
+def get_first_order_stds(
+    ordered_spikes: npt.NDArray, num_neurons: int
+) -> list[list[list[float]]]:
     """Obtain the first order spikes timing differences from a list of ordered
     spikes
     """
@@ -30,7 +32,9 @@ def get_first_order_stds(ordered_spikes, num_neurons):
     return interspike_times
 
 
-def get_first_order_stds_2nrn(ordered_spikes, num_neurons):
+def get_first_order_stds_2nrn(
+    ordered_spikes: npt.NDArray, num_neurons: int
+) -> tuple[npt.NDArray, int]:
     """Obtain the dts between two neurons from a list of ordered spikes
 
     Uses HX's next neighbor counting scheme. Works only if network consists of
@@ -67,7 +71,9 @@ def get_first_order_stds_2nrn(ordered_spikes, num_neurons):
     return np.asarray(interspike_times, dtype=np.float32), num_dropped_spikes
 
 
-def calc_nn_stdp(ordered_spikes, num_neurons, kernel, kernel_args):
+def calc_nn_stdp(
+    ordered_spikes: npt.NDArray, num_neurons: int, kernel: Callable, kernel_args: tuple
+) -> npt.NDArray:
     pre_spikes = np.full(num_neurons, -1e10)
     corr_stdp = np.zeros((num_neurons, num_neurons))
     # use the identity matrix, because one has to devide corr_stdp by
@@ -89,7 +95,13 @@ def calc_nn_stdp(ordered_spikes, num_neurons, kernel, kernel_args):
 
 
 @numba.jit(nopython=True, cache=False)
-def spike_corr(ordered_spikes, dt, tmax, binsize, nrn_idx=(1, 2)):
+def spike_corr(
+    ordered_spikes: npt.NDArray,
+    dt: float,
+    tmax: float,
+    binsize: float,
+    nrn_idx: tuple[int, int] = (1, 2),
+) -> float:
     spk1 = ordered_spikes[np.where(ordered_spikes[:, 1] == float(nrn_idx[0]))][:, 0]
     # shift the first spike train by dt
     spk1 += dt
@@ -103,7 +115,13 @@ def spike_corr(ordered_spikes, dt, tmax, binsize, nrn_idx=(1, 2)):
 
 
 @numba.jit(nopython=True)
-def spike_corr_function(ordered_spikes, dts, tmax, binsize=0.5, nrn_idx=(1, 2)):
+def spike_corr_function(
+    ordered_spikes: npt.NDArray,
+    dts: npt.NDArray,
+    tmax: float,
+    binsize: float = 0.5,
+    nrn_idx: tuple[int, int] = (1, 2),
+) -> npt.NDArray:
     res = np.empty(len(dts))
     for i in numba.prange(len(dts)):
         r = spike_corr(ordered_spikes, dts[i], tmax, binsize, nrn_idx=nrn_idx)
@@ -112,7 +130,9 @@ def spike_corr_function(ordered_spikes, dts, tmax, binsize=0.5, nrn_idx=(1, 2)):
 
 
 @numba.njit(cache=False)
-def exp_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
+def exp_kernel(
+    dt: float, a_plus: float, a_minus: float, tau_plus: float, tau_minus: float
+) -> float:
     if dt > 0.0:
         return a_plus * np.exp(-dt / tau_plus)
     elif dt < 0.0:
@@ -122,7 +142,9 @@ def exp_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
 
 
 @numba.njit()
-def tri_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
+def tri_kernel(
+    dt: float, a_plus: float, a_minus: float, tau_plus: float, tau_minus: float
+) -> float:
     if dt > 0.0 and dt < tau_plus:
         return a_plus - dt * a_plus / tau_plus
     elif dt < 0.0 and dt > -tau_minus:
@@ -132,7 +154,13 @@ def tri_kernel(dt, a_plus, a_minus, tau_plus, tau_minus):
 
 
 @numba.jit(nopython=True, cache=False)
-def pairbased_stdp(kernel, kernel_args, ordered_spikes, num_neurons, num_last_spikes):
+def pairbased_stdp(
+    kernel: Callable,
+    kernel_args: tuple,
+    ordered_spikes: npt.NDArray,
+    num_neurons: int,
+    num_last_spikes: int,
+) -> npt.NDArray:
     # traces = np.zeros(num_neurons)
     last_spikes = np.full((num_neurons, num_last_spikes), -np.inf)
     stdp = np.zeros((num_neurons, num_neurons))
@@ -160,7 +188,7 @@ def pairbased_stdp(kernel, kernel_args, ordered_spikes, num_neurons, num_last_sp
 @numba.jit(nopython=True, cache=False)
 def noised_pairbased_stdp(
     ordered_spikes: npt.NDArray,
-    kernel_func: callable,
+    kernel_func: Callable,
     a_plus: npt.NDArray,
     a_minus: npt.NDArray,
     tau_plus: npt.NDArray,
@@ -209,7 +237,7 @@ class STDPRuler:
 
     def __init__(
         self,
-        kernel_func: callable,
+        kernel_func: Callable,
         dims: int,
         num_last_spks: int,
         a_plus: npt.ArrayLike,
@@ -269,7 +297,7 @@ class STDPRuler:
         a_minus: npt.ArrayLike,
         tau_plus: npt.ArrayLike,
         tau_minus: npt.ArrayLike,
-    ):
+    ) -> "STDPRuler":
         """Docstring."""
         return cls(
             exp_kernel, dims, num_last_spks, a_plus, a_minus, tau_minus, tau_minus
@@ -284,7 +312,7 @@ class STDPRuler:
         a_minus: npt.ArrayLike,
         tau_plus: npt.ArrayLike,
         tau_minus: npt.ArrayLike,
-    ):
+    ) -> "STDPRuler":
         """Docstring."""
         return cls(
             tri_kernel, dims, num_last_spks, a_plus, a_minus, tau_minus, tau_minus
@@ -292,10 +320,10 @@ class STDPRuler:
 
     def set_forward(
         self,
-        a_plus: Optional[npt.ArrayLike] = None,
-        a_minus: Optional[npt.ArrayLike] = None,
-        tau_plus: Optional[npt.ArrayLike] = None,
-        tau_minus: Optional[npt.ArrayLike] = None,
+        a_plus: npt.ArrayLike | None = None,
+        a_minus: npt.ArrayLike | None = None,
+        tau_plus: npt.ArrayLike | None = None,
+        tau_minus: npt.ArrayLike | None = None,
     ) -> None:
         """DOCSTRING."""
         if a_plus is not None:
@@ -309,10 +337,10 @@ class STDPRuler:
 
     def set_backward(
         self,
-        a_plus: Optional[npt.ArrayLike] = None,
-        a_minus: Optional[npt.ArrayLike] = None,
-        tau_plus: Optional[npt.ArrayLike] = None,
-        tau_minus: Optional[npt.ArrayLike] = None,
+        a_plus: npt.ArrayLike | None = None,
+        a_minus: npt.ArrayLike | None = None,
+        tau_plus: npt.ArrayLike | None = None,
+        tau_minus: npt.ArrayLike | None = None,
     ) -> None:
         """DOCSTRING."""
         if a_plus is not None:
@@ -337,7 +365,7 @@ class STDPRuler:
             self.num_last_spks,
         )
 
-    def noised_correlation_factors(self):
+    def noised_correlation_factors(self) -> npt.NDArray:
         if self.kernel_func != tri_kernel:
             raise ValueError(
                 "The noised correlation factors are only defined if the STDP is triangular!"  # noqa

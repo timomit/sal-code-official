@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.special import expit
@@ -52,9 +51,9 @@ class EISystem:
         STDP measures per connection (set by `calc_stdp`).
     """
 
-    NEURONS: Dict[str, int] = {"e1": 0, "e2": 1, "i1": 2, "i2": 3}
+    NEURONS: dict[str, int] = {"e1": 0, "e2": 1, "i1": 2, "i2": 3}
 
-    CONNECTIONS: Dict[str, Tuple[int, int]] = {
+    CONNECTIONS: dict[str, tuple[int, int]] = {
         "e2_e1": np.s_[1, 0],
         "e1_e2": np.s_[0, 1],
         "i1_e1": np.s_[2, 0],
@@ -64,7 +63,7 @@ class EISystem:
     }
 
     @staticmethod
-    def _convert_connection_indices(np_idx: np.s_[int, int]) -> Tuple[int, int]:
+    def _convert_connection_indices(np_idx: np.s_[int, int]) -> tuple[int, int]:
         """Convert numpy index slice to 1-based tuple index."""
         return (np_idx[1] + 1, np_idx[0] + 1)
 
@@ -84,13 +83,13 @@ class EISystem:
 
     def __init__(
         self,
-        weights: Dict[str, float],
-        bias: Dict[str, float],
+        weights: dict[str, float],
+        bias: dict[str, float],
         tref: float,
         tsyn: float,
         kernel: object,
-    ):
-        self.tmax: Optional[float] = None
+    ) -> None:
+        self.tmax: float | None = None
         self.tref = tref
         self.tsyn = tsyn
         self.kernel = kernel
@@ -104,27 +103,27 @@ class EISystem:
         for name, idx in self.NEURONS.items():
             self.b[idx] = bias[name]
 
-        self.rates: Dict[str, float] = {}
-        self.corrs: Dict[str, np.ndarray] = {}
-        self.stdds: Dict[str, np.ndarray] = {}
+        self.rates: dict[str, float] = {}
+        self.corrs: dict[str, np.ndarray] = {}
+        self.stdds: dict[str, np.ndarray] = {}
         self.stdps: np.zeros(2, 2)
 
-    def _set_weight(self, idx, value):
+    def _set_weight(self, idx: tuple, value: float) -> None:
         self.W[idx] = value
 
-    def _set_bias(self, idx, value):
+    def _set_bias(self, idx: int, value: float) -> None:
         self.b[idx] = value
 
-    def _get_rate(self, name):
+    def _get_rate(self, name: str) -> float | None:
         return self.rates.get(name, None)
 
-    def _get_corr(self, conn):
+    def _get_corr(self, conn: str) -> np.ndarray | None:
         return self.corrs.get(conn, None)
 
-    def _get_stdd(self, conn):
+    def _get_stdd(self, conn: str) -> np.ndarray | None:
         return self.stdds.get(conn, None)
 
-    def _get_stdp(self, idx):
+    def _get_stdp(self, idx: tuple) -> float:
         return self.stdps[idx]
 
     def simulate(self, tmax: float) -> None:
@@ -157,7 +156,7 @@ class EISystem:
         self.rates = {n: r for (n, r) in zip(self.NEURONS.keys(), rates_array)}
 
     def calc_correlations(
-        self, connections: List[str], max_dt: float = 2.0, binsize: float = 1.0
+        self, connections: list[str], max_dt: float = 2.0, binsize: float = 1.0
     ) -> None:
         """
         Calculate and store spike correlations for given connections.

@@ -1,6 +1,6 @@
 from itertools import product
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple, TypeAlias
+from typing import Callable, TypeAlias
 
 import matplotlib.pyplot as plt
 import numba
@@ -15,8 +15,12 @@ ParamDict: TypeAlias = dict  # TODO
 
 @numba.jit(nopython=True)
 def get_states_from_spikes(
-    number_of_neurons: int, spikes, taurefs, dt: float, duration: float = 0.0
-):
+    number_of_neurons: int,
+    spikes: npt.NDArray,
+    taurefs: npt.NDArray,
+    dt: float,
+    duration: float = 0.0,
+) -> npt.NDArray:
     """
     Return a list of states, sampled at multiples of dt, for the neurons produced by
     spikes.
@@ -89,22 +93,22 @@ def get_states_from_spikes(
         return np.zeros((2, number_of_neurons))
 
 
-def number_to_state(number, nNeurons):
+def number_to_state(number: int, n_neurons: int) -> npt.NDArray:
     """
     Returns the state corresponding to a given index
 
     """
-    if number >= 2**nNeurons:
+    if number >= 2**n_neurons:
         raise ValueError(
-            f"{number} is to larger to be a valid state for {nNeurons} neurons."
+            f"{number} is to larger to be a valid state for {n_neurons} neurons."
         )
     s = tuple(int(s) for s in bin(int(number))[2:])
-    state = np.array((nNeurons - len(s)) * (0,) + s)
+    state = np.array((n_neurons - len(s)) * (0,) + s)
 
     return state
 
 
-def bm_to_probs(W, b, force=False):
+def bm_to_probs(W: npt.NDArray, b: npt.NDArray, force: bool = False) -> list:
     """Calculate the the probability distribution, the marginals of the single
     neurons and the pariwise joint distributions for an abstract Boltzmann
     machine analytically
@@ -149,14 +153,14 @@ def bm_to_probs(W, b, force=False):
     return [probs, statesArr, coactivation]
 
 
-def list_of_states(num_neurons):
+def list_of_states(num_neurons: int) -> list[tuple[int, ...]]:
     """
     create a list of all possible states
     """
     return list(product(range(2), repeat=num_neurons))
 
 
-def distr_from_states(sampledStates, states):
+def distr_from_states(sampled_states: npt.NDArray, states: list) -> npt.NDArray:
     """
     Calculate the probabilities of the joint states, from sampled states.
 
@@ -165,12 +169,12 @@ def distr_from_states(sampledStates, states):
     by interpreting the neural state as a binary number.
     For example: The state [1,1,0,0,1] is assigned the number
     2^4 * 1 + 2^3 * 1 + 2^2 * 0 + 2^1 * 0 + 2^0 * 1 = 25
-    We do this assingement with both the states found in <sampledStates>
+    We do this assingement with both the states found in <sampled_states>
     and in <states>. Finally, we count how often the IDs in <states<
-    appear in <sampledStates>.
+    appear in <sampled_states>.
 
     Args:
-        -- sampledStates: matrix of all sampled states
+        -- sampled_states: matrix of all sampled states
                           the states are in rows
         -- states: list of states, the returned probabilities will
                    correspond to the order of these states
@@ -180,16 +184,16 @@ def distr_from_states(sampledStates, states):
 
     # cast the input to integeres be able to use integer operations
     # to increase the execution speed
-    sampledStates = sampledStates.astype(int)
+    sampled_states = sampled_states.astype(int)
     states = np.array(states).astype(int)
 
     # Turn the sampled states into a list of state IDs
     # the << is the bitshift operator which can be used for fast calculation
     # of the state IDs. E.g. "x << y" evaluates to "x * 2**y"
-    isampledStates = (
-        sampledStates
+    isampled_states = (
+        sampled_states
         << np.tile(
-            np.arange(sampledStates.shape[1] - 1, -1, -1), (sampledStates.shape[0], 1)
+            np.arange(sampled_states.shape[1] - 1, -1, -1), (sampled_states.shape[0], 1)
         )
     ).sum(axis=1)
 
@@ -199,7 +203,7 @@ def distr_from_states(sampledStates, states):
     ).sum(axis=1)
 
     # Count the IDs of interest in the sampled IDs
-    counts = np.bincount(isampledStates, minlength=len(states))
+    counts = np.bincount(isampled_states, minlength=len(states))
 
     # Nomalize the frequencies to obtain probabilities and ensure that the
     # order follows the one provided in states
@@ -208,14 +212,16 @@ def distr_from_states(sampledStates, states):
     return prob
 
 
-def calc_dkl(p, q):
+def calc_dkl(p: npt.NDArray, q: npt.NDArray) -> float:
     """
     Kullback-Leibler divergence
     """
     return np.sum(p * np.log(p / q))
 
 
-def ordered_spikes_to_list(ordered_spikes, neuron_ids):
+def ordered_spikes_to_list(
+    ordered_spikes: npt.NDArray, neuron_ids: list[int]
+) -> list[npt.NDArray]:
     """Turn a ordered spikes array into a list of spike arrays
 
     Ordered spikes contains a two-dim numpy array, where the first entry stores
@@ -233,7 +239,12 @@ def ordered_spikes_to_list(ordered_spikes, neuron_ids):
     return spike_list
 
 
-def spike_rate(ordered_spikes, nrn_ids, t_max=None, timeunit="ms"):
+def spike_rate(
+    ordered_spikes: npt.NDArray,
+    nrn_ids: list[int] | tuple[int, ...],
+    t_max: float | None = None,
+    timeunit: str = "ms",
+) -> npt.NDArray:
     """Calculate the mean spike rates from an ordered spike train.
 
     Asumes that the spike times are given in milli seconds. Also returns rates in
@@ -256,9 +267,9 @@ def spike_rate(ordered_spikes, nrn_ids, t_max=None, timeunit="ms"):
 
 def plot_distr(
     ax: plt.Axes,
-    distrs: List[np.ndarray],
-    los: List[str],
-    labels: Optional[List[str]] = None,
+    distrs: list[npt.NDArray],
+    los: list[str],
+    labels: list[str] | None = None,
 ) -> plt.Axes:
     """
     Plot multiple distributions as grouped bar charts on a logarithmic scale.
@@ -329,8 +340,12 @@ def load_paramfile(
 
 
 def draw_trunc_distr(
-    generator: Callable, high: float, low: float, size: Tuple[int], kwargs: dict = {}
-):
+    generator: Callable,
+    high: float,
+    low: float,
+    size: tuple[int, ...],
+    kwargs: dict = {},
+) -> npt.NDArray:
     """
     Draw random numbers from a truncated distribution within specified boundaries.
 
