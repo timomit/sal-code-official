@@ -72,7 +72,7 @@ def sim_poisson_neurons(
     ordered_spikes = []
     # how many past spikes do we take into account for the calculation of the
     # PSPs
-    last_spikes = np.full((num_neurons, num_last_spikes), -np.inf)
+    last_spikes = np.full((num_neurons, num_last_spikes), -100_000_000)
 
     for t in range(t_max):
         inst_rate = calc_inst_rate(
@@ -704,6 +704,7 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         max_w: float = 2.0,
         max_b: float = 2.0,
         rng_seed=424242,
+        weight_decay: float | npt.NDArray = 0.0,
     ):
         """Docstring."""
         super().__init__(init_weight, init_bias, 0, sim_params, rng_seed=rng_seed)
@@ -716,6 +717,8 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         self.max_w = max_w
         self.max_b = max_b
         self.validation = False
+
+        self.weight_decay = 1.0 - weight_decay
 
         self.target_distr, self.los, self.coact = bm_to_probs(
             target_weight, target_bias
@@ -809,7 +812,10 @@ class NeuralSamplerFullyConnected(NeuralSampler):
             sal_rule=sal_rule,
         )
 
-        grad_weight = self.coact - sleep_stdp
+        corrected_coact = (
+            self.coact * stdp_rule.noised_correlation_factors() / self.t_ref
+        )
+        grad_weight = corrected_coact - sleep_stdp
         grad_bias = self.marginals - sleep_rates
 
         delta_weight = self.optimizer_weight.update(grad_weight)
@@ -819,6 +825,9 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         self.bias = self.bias + delta_bias
         self.weight = self.weight + delta_weight
 
+        # weight decay
+        self.weight = self.weight * self.weight_decay
+
         # optional: symmetrization with sal
         if sal_rule is not None:
             delta_sal = self.optimizer_symm(stdp_sal)
@@ -827,6 +836,7 @@ class NeuralSamplerFullyConnected(NeuralSampler):
         # impose RBM restrictions:
         self.clip_weights(self.max_w)
         self.clip_bias(self.max_b)
+        np.fill_diagonal(self.weight, 0.0)
 
         res = {
             "sampled_distr": sampled_distr,

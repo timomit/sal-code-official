@@ -99,15 +99,16 @@ def spike_corr(ordered_spikes, dt, tmax, binsize, nrn_idx=(1, 2)):
     bins = np.arange(0, tmax + binsize, binsize)
     bins1, _ = np.histogram(spk1, bins=bins)
     bins2, _ = np.histogram(spk2, bins=bins)
-    cov = np.cov(np.vstack((bins1, bins2)))
-    return cov[0, 1]
+    corr = np.mean(bins1 * bins2)
+    return corr
 
 
 @numba.jit(nopython=True)
 def spike_corr_function(ordered_spikes, dts, tmax, binsize=0.5, nrn_idx=(1, 2)):
-    res = np.empty_like(dts)
+    res = np.empty(len(dts))
     for i in numba.prange(len(dts)):
-        res[i] = spike_corr(ordered_spikes, dts[i], tmax, binsize, nrn_idx=nrn_idx)
+        r = spike_corr(ordered_spikes, dts[i], tmax, binsize, nrn_idx=nrn_idx)
+        res[i] = r
     return res
 
 
@@ -336,3 +337,10 @@ class STDPRuler:
             self.dims,
             self.num_last_spks,
         )
+
+    def noised_correlation_factors(self):
+        if self.kernel_func != tri_kernel:
+            raise ValueError(
+                "The noised correlation factors are only defined if the STDP is triangular!"  # noqa
+            )
+        return 0.5 * (self.a_plus * self.tau_plus + self.a_minus * self.tau_minus)
