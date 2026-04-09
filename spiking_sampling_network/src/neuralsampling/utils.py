@@ -21,24 +21,17 @@ def get_states_from_spikes(
     dt: float,
     duration: float = 0.0,
 ) -> npt.NDArray:
-    """
-    Return a list of states, sampled at multiples of dt, for the neurons produced by
-    spikes.
+    """Sample neuron states at multiples of dt from an ordered spike array.
 
-    Input:
-    number_of_neurons   int     size of the resulting state
-    spikes              ndarray 2d array of spike (time, id)-tuple
-    taurefs             ndarray tauref values to be used for all neurons, must be
-                                number_of_neurons long
+    Args:
+        number_of_neurons: Number of neurons.
+        spikes: 2D array of (time, neuron_id) spike tuples.
+        taurefs: Refractory period per neuron.
+        dt: Sampling interval.
+        duration: Simulation duration; inferred from last spike if 0.
 
-    If duration is not explicitly specified it will be inferred from the last spike
-
-    The state of neuron i at time t is 1 iff there was a spike within (t-tauref[i], t)
-    We assume that the provided taurefs are correct, i.e. there are no two spikes of
-    a single neuron such that t[n+1]-t[n] < tauref. If that assumption is violated we
-    raise a warning.
-
-    Taken from hxsampling :)
+    Returns:
+        2D state array of shape (num_timesteps, number_of_neurons).
     """
     state = np.zeros(number_of_neurons)
     # buffer to keep the outstanding offspikes around, should not exceed size
@@ -94,10 +87,7 @@ def get_states_from_spikes(
 
 
 def number_to_state(number: int, n_neurons: int) -> npt.NDArray:
-    """
-    Returns the state corresponding to a given index
-
-    """
+    """Convert an integer index to its binary neuron state vector."""
     if number >= 2**n_neurons:
         raise ValueError(
             f"{number} is to larger to be a valid state for {n_neurons} neurons."
@@ -109,17 +99,16 @@ def number_to_state(number: int, n_neurons: int) -> npt.NDArray:
 
 
 def bm_to_probs(W: npt.NDArray, b: npt.NDArray, force: bool = False) -> list:
-    """Calculate the the probability distribution, the marginals of the single
-    neurons and the pariwise joint distributions for an abstract Boltzmann
-    machine analytically
-    Keywords:
-        -- W: connection matrix
-        -- b: bias vector
-        -- force: force the calculation for more then 15 neurons
+    """Compute the Boltzmann machine probability distribution analytically.
+
+    Args:
+        W: Weight matrix.
+        b: Bias vector.
+        force: Allow computation for >15 neurons.
+
     Returns:
-        -- probs: probability distribution
-        -- statesArr: array of states corresponding to probs
-        -- C: pairwise joint, the diagonal contains the marginals
+        [probs, states, coactivation] — probability array, list of states,
+        pairwise joint matrix (diagonal = marginals).
     """
 
     # reject working on more than 15 neurons unless forced
@@ -161,25 +150,14 @@ def list_of_states(num_neurons: int) -> list[tuple[int, ...]]:
 
 
 def distr_from_states(sampled_states: npt.NDArray, states: list) -> npt.NDArray:
-    """
-    Calculate the probabilities of the joint states, from sampled states.
-
-    The implemented method:
-    In the code we assign to each state an integer id. We do this
-    by interpreting the neural state as a binary number.
-    For example: The state [1,1,0,0,1] is assigned the number
-    2^4 * 1 + 2^3 * 1 + 2^2 * 0 + 2^1 * 0 + 2^0 * 1 = 25
-    We do this assingement with both the states found in <sampled_states>
-    and in <states>. Finally, we count how often the IDs in <states<
-    appear in <sampled_states>.
+    """Estimate the joint state distribution from sampled states.
 
     Args:
-        -- sampled_states: matrix of all sampled states
-                          the states are in rows
-        -- states: list of states, the returned probabilities will
-                   correspond to the order of these states
-    Return:
-        -- probs: array of probabilities
+        sampled_states: Matrix of sampled states (states in rows).
+        states: Reference list of states to compute probabilities for.
+
+    Returns:
+        Probability array aligned to the order of `states`.
     """
 
     # cast the input to integeres be able to use integer operations
@@ -222,13 +200,14 @@ def calc_dkl(p: npt.NDArray, q: npt.NDArray) -> float:
 def ordered_spikes_to_list(
     ordered_spikes: npt.NDArray, neuron_ids: list[int]
 ) -> list[npt.NDArray]:
-    """Turn a ordered spikes array into a list of spike arrays
+    """Split an ordered spike array into per-neuron spike time lists.
 
-    Ordered spikes contains a two-dim numpy array, where the first entry stores
-    the spike time and the second entry the respective neuron id.
-    Returns a list of arrays for each neuron with the spike times (typically
-    used when plotting spike rasterplots).
-    neuron_ids is a list with the respective neuron ids.
+    Args:
+        ordered_spikes: 2D array of (time, neuron_id) tuples.
+        neuron_ids: List of neuron IDs to extract.
+
+    Returns:
+        List of 1D spike-time arrays, one per neuron in `neuron_ids`.
     """
     spike_list = []
     for id in neuron_ids:
@@ -245,10 +224,16 @@ def spike_rate(
     t_max: float | None = None,
     timeunit: str = "ms",
 ) -> npt.NDArray:
-    """Calculate the mean spike rates from an ordered spike train.
+    """Compute mean spike rates from an ordered spike train.
 
-    Asumes that the spike times are given in milli seconds. Also returns rates in
-    1/ms. If t_max is None, take the last spike as an estimate for the trial duration.
+    Args:
+        ordered_spikes: 2D array of (time, neuron_id) tuples.
+        nrn_ids: Neuron IDs to compute rates for.
+        t_max: Trial duration; inferred from last spike if None.
+        timeunit: 'ms' or 's'.
+
+    Returns:
+        Array of mean spike rates, one per neuron in `nrn_ids`.
     """
     if t_max is None:
         t_max = ordered_spikes[-1, 0]
@@ -271,35 +256,17 @@ def plot_distr(
     los: list[str],
     labels: list[str] | None = None,
 ) -> plt.Axes:
+    """Plot multiple distributions as grouped bar charts on a log scale.
+
+    Args:
+        ax: Matplotlib axes to draw on.
+        distrs: List of probability arrays to plot.
+        los: State labels for x-axis.
+        labels: Legend labels per distribution.
+
+    Returns:
+        The axes with the plot.
     """
-    Plot multiple distributions as grouped bar charts on a logarithmic scale.
-
-    This function creates a grouped bar chart for multiple distributions,
-    with each distribution represented by a different color. The y-axis is
-    set to a logarithmic scale.
-
-    Parameters
-    ----------
-    ax : plt.Axes
-        The matplotlib Axes object on which to draw the plot.
-    distrs : List[np.ndarray]
-        A list of 1D numpy arrays, each representing a distribution to be plotted.
-    los : List[str]
-        A list of strings representing the labels for each state (x-axis labels).
-    labels : Optional[List[str]], default=None
-        A list of labels for each distribution. If None, no labels are used.
-
-    Returns
-    -------
-    plt.Axes
-        The matplotlib Axes object with the plotted distributions.
-
-    Notes
-    -----
-    - The function assumes all distributions have the same number of states.
-    - The bars for different distributions are grouped together for each state.
-    - The y-axis is set to a logarithmic scale to better visualize variations
-      in probability across orders of magnitude."""
     num_distrs = len(distrs)
     num_states = len(distrs[0])
     xs_distrs = np.arange(num_states)
@@ -333,7 +300,7 @@ def plot_distr(
 def load_paramfile(
     path: StrPath,
 ) -> ParamDict:
-    """DOCSTRING."""
+    """Load a YAML parameter file and return its contents as a dict."""
     with open(path, "r") as f:
         params = yaml.safe_load(f)
         return params
@@ -346,31 +313,19 @@ def draw_trunc_distr(
     size: tuple[int, ...],
     kwargs: dict = {},
 ) -> npt.NDArray:
-    """
-    Draw random numbers from a truncated distribution within specified boundaries.
+    """Draw random samples from a distribution truncated to [low, high].
 
-    This function generates random numbers using the provided generator function,
-    ensuring all values fall within the specified range [low, high]. If any generated
-    numbers are outside this range, they are redrawn until all values are valid.
+    Resamples values outside the range until all are valid.
 
-    Parameters
-    ----------
-    generator : Callable
-        A function that generates random numbers. It should accept a `size` parameter
-        and any additional keyword arguments provided in `kwargs`.
-    high : float
-        The upper boundary of the acceptable range.
-    low : float
-        The lower boundary of the acceptable range.
-    size : Tuple[int]
-        The desired shape of the output array.
-    kwargs : dict, optional
-        Additional keyword arguments to pass to the generator function (default is {}).
+    Args:
+        generator: Random number generator callable (e.g., rng.normal).
+        high: Upper bound.
+        low: Lower bound.
+        size: Shape of the output array.
+        kwargs: Extra keyword arguments forwarded to `generator`.
 
-    Returns
-    -------
-    np.ndarray
-        An array of random numbers with shape `size`, all within the range [low, high]."
+    Returns:
+        Array of shape `size` with all values in [low, high].
     """
 
     res = generator(size=np.prod(size), **kwargs)
@@ -388,26 +343,13 @@ def draw_trunc_distr(
 def copy_triu(
     arr: npt.NDArray,
 ) -> npt.NDArray:
-    """Copy the upper triangular part of a matrix to its lower triangular part.
+    """Symmetrize a matrix by copying the upper triangle to the lower.
 
-    This function creates a symmetric matrix by copying the upper triangular
-    elements (excluding the main diagonal) to the corresponding lower triangular
-    positions.
+    Args:
+        arr: Square input matrix.
 
-    Parameters
-    ----------
-    arr : npt.NDArray
-        Input square matrix.
-
-    Returns
-    -------
-    npt.NDArray
-        A new matrix with the upper triangular part copied to the lower triangular part.
-
-    Notes
-    -----
-    The function assumes that `arr` is a square matrix.
-    The main diagonal remains unchanged.
+    Returns:
+        New symmetric matrix with upper triangle values mirrored.
     """
     res = np.copy(arr)
     res[np.tril_indices(arr.shape[0])] = 0.0
@@ -415,26 +357,13 @@ def copy_triu(
 
 
 def copy_tril(arr: npt.NDArray) -> npt.NDArray:
-    """Copy the lower triangular part of a matrix to its upper triangular part.
+    """Symmetrize a matrix by copying the lower triangle to the upper.
 
-    This function creates a symmetric matrix by copying the lower triangular
-    elements (excluding the main diagonal) to the corresponding upper triangular
-    positions.
+    Args:
+        arr: Square input matrix.
 
-    Parameters
-    ----------
-    arr : npt.NDArray
-        Input square matrix.
-
-    Returns
-    -------
-    npt.NDArray
-        A new matrix with the lower triangular part copied to the upper triangular part.
-
-    Notes
-    -----
-    The function assumes that `arr` is a square matrix.
-    The main diagonal remains unchanged.
+    Returns:
+        New symmetric matrix with lower triangle values mirrored.
     """
     res = np.copy(arr)
     res[np.triu_indices(arr.shape[0])] = 0.0
