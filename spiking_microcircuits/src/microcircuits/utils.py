@@ -5,18 +5,21 @@ Collection of miscellaneous function
 import numpy as np
 
 
+# FIXME: delete!
 def logistic(x, t_ref):
     return 1.0 / (1.0 + np.exp(-(x - np.log(t_ref))))
 
 
+# FIXME: delete
 def rect_psp(dt, tau_syn):
     return np.heaviside(dt, 1.0) * np.heaviside(-(dt - tau_syn), 0.0)
 
-
+# FIXME: delete
 def exp_stdp_kernel(dt, a, tau):
     return a * np.heaviside(dt, 0.0) * np.exp(-dt / tau)
 
 
+# FIXME: delete??
 def time_str(sec):
     """prints time to go string"""
     string = ""
@@ -30,6 +33,7 @@ def time_str(sec):
     return string
 
 
+# FIXME: delete??
 def calc_spike_rates(spks, t_pattern, t_ref, num_pattern):
     spike_rate = []
     dt_pattern = t_pattern * t_ref
@@ -42,7 +46,7 @@ def calc_spike_rates(spks, t_pattern, t_ref, num_pattern):
 
 
 # taken directly from Laura
-class Tracker:
+class Tracker:  # NOTE: used in model.py (Network.init_tracker)
     """
     Tracks/records changes in 'target' array. Records 'length'*'compress_len'
     samples, compressed (averaged) into 'length' samples. The result is stored
@@ -53,27 +57,28 @@ class Tracker:
     'data' (finish the last compression).
     """
 
-    def __init__(self, length, target, compress_len):
+    def __init__(self, length, target, compress_len):  # NOTE: used in model.py
         self.target = target
         self.data = np.zeros(tuple([length]) + target.shape, dtype=np.float32)
         self.index = 0
         self.buffer = np.zeros(target.shape)
         self.din = compress_len
 
-    def record(self):
+    def record(self):  # NOTE: used in model.py (Network.record_quantities)
         self.buffer += self.target
         if (self.index + 1) % self.din == 0:
             self.data[int(self.index / self.din), :] = self.buffer / self.din
             self.buffer.fill(0)
         self.index += 1
 
-    def finalize(self):
+    def finalize(self):  # NOTE: used in model.py (Network.finalize_tracker)
         """fill last data point with average of remaining target data in buffer."""
         n_buffer = self.index % self.din
         if n_buffer > 0:
             self.data[int(self.index / self.din), :] = self.buffer / n_buffer
 
 
+# FIXME: keep or delete??
 class SpikeTracker:
     """
     Tracks spikes during the simulation. Uses a similar concept as the normal
@@ -118,6 +123,7 @@ class SpikeTracker:
         return self.mean_rates
 
 
+# FIXME: delete?
 class RunResult(dict):
     """Collection of tracked data during a network run
 
@@ -201,10 +207,10 @@ class RunResult(dict):
         return res
 
 
-class MovingAverage:
+class MovingAverage:  # NOTE: used in model.py (InputLayer, Layer, OutputLayer.__init__)
     """docstring for MovingAverage."""
 
-    def __init__(self, val, stacksize: int):
+    def __init__(self, val, stacksize: int):  # NOTE: used in model.py
         self.val = val.copy()
         self.stack = np.zeros((stacksize, len(val)), dtype=val.dtype)
         self.stack[0] = self.val[:]
@@ -212,7 +218,7 @@ class MovingAverage:
         self.num_elements = 1
         self.i = 1  # stack index of element to be changed in next time step
 
-    def move(self, new_val):
+    def move(self, new_val):  # NOTE: used in model.py
         # stack fills up at the beginning
         if self.num_elements < self.stacksize:
             self.num_elements += 1

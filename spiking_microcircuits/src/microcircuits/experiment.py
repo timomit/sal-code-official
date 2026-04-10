@@ -11,14 +11,14 @@ from microcircuits import model as model
 from microcircuits.model import WeightsList
 
 
-class Descriptor(dict):
+class Descriptor(dict):  # NOTE: used in experiment.py (base class of PropertiesDescriptor, ExperimentDescriptor)
     """Holds parameters. Items behave also like normal class attributes
 
     Basically a subclass of a dictionary...
     (inspired by https://github.com/scipy/scipy/blob/v1.8.1/scipy/optimize/_optimize.py#L84-L140)  # noqa
     """
 
-    def __getattr__(self, name):
+    def __getattr__(self, name):  # NOTE: used in experiment.py
         try:
             return self[name]
         except KeyError as e:
@@ -27,7 +27,7 @@ class Descriptor(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
-    def __repr__(self):
+    def __repr__(self):  # NOTE: used in experiment.py
         if self.keys():
             m = max(map(len, list(self.keys()))) + 1
             return "\n".join(
@@ -36,11 +36,11 @@ class Descriptor(dict):
         else:
             return self.__class__.__name__ + "()"
 
-    def __dir__(self):
+    def __dir__(self):  # NOTE: used in experiment.py
         return list(self.keys())
 
 
-class PropertiesDescriptor(Descriptor):
+class PropertiesDescriptor(Descriptor):  # NOTE: used in experiment.py (base class of NetworkProperties, SimulationProperties, InitialParameterDescriptor, InputDescriptor)
     """Holds all properties of some kind
 
     inherits from a dict. Includes automatic sanitychecks!
@@ -49,11 +49,11 @@ class PropertiesDescriptor(Descriptor):
     # TODO fill all attributes!
     _REQUIRED_ATTR = {}
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # NOTE: used in experiment.py
         super().__init__(**kwargs)
         self._sanity_check()
 
-    def _sanity_check(self):
+    def _sanity_check(self):  # NOTE: used in experiment.py (PropertiesDescriptor.__init__)
         for item in self._REQUIRED_ATTR.items():
             assert item[0] in self.keys(), f"Keywork {item[0]} is missing!"
             assert isinstance(
@@ -64,7 +64,7 @@ class PropertiesDescriptor(Descriptor):
         return self._REQUIRED_ATTR
 
 
-class NetworkProperties(PropertiesDescriptor):
+class NetworkProperties(PropertiesDescriptor):  # NOTE: used in experiment.py (ExperimentDescriptor.__init__)
     """Holds all network properties (= network internal parameters)
 
     inherits from a dict. Includes automatic sanitychecks!
@@ -74,7 +74,7 @@ class NetworkProperties(PropertiesDescriptor):
     _REQUIRED_ATTR = {"t_ref": int, "n_last_spks": int}
 
 
-class SimulationProperties(PropertiesDescriptor):
+class SimulationProperties(PropertiesDescriptor):  # NOTE: used in experiment.py (ExperimentDescriptor.__init__)
     """Holds all network properties (= network internal parameters)
 
     inherits from a dict. Includes automatic sanitychecks!
@@ -84,7 +84,7 @@ class SimulationProperties(PropertiesDescriptor):
     _REQUIRED_ATTR = {"t_pattern": int, "len_epoch": int}
 
 
-class InitialParameterDescriptor(PropertiesDescriptor):
+class InitialParameterDescriptor(PropertiesDescriptor):  # NOTE: used in experiment.py (ExperimentDescriptor.__init__)
     """Holds the initial parameters (weights and biases)"""
 
     # _REQUIRED_ATTR = {"weights": list, "bias": list}
@@ -92,14 +92,14 @@ class InitialParameterDescriptor(PropertiesDescriptor):
     _REQUIRED_ATTR = {"bias": list}
 
 
-class InputDescriptor(PropertiesDescriptor):
+class InputDescriptor(PropertiesDescriptor):  # NOTE: used in experiment.py (ExperimentDescriptor.__init__)
     """Holds the input values for the network"""
 
     _REQUIRED_ATTR = {"training": list, "validation": list}
 
 
-class ExperimentDescriptor(Descriptor):
-    def __init__(self, description_file: str):
+class ExperimentDescriptor(Descriptor):  # NOTE: used in run.py
+    def __init__(self, description_file: str):  # NOTE: used in run.py
         with open(description_file, "r") as f:
             data = yaml.safe_load(f)
 
@@ -142,7 +142,7 @@ class ExperimentDescriptor(Descriptor):
         return res
 
 
-def check_network_properties(network_properties: dict):
+def check_network_properties(network_properties: dict):  # NOTE: used in experiment.py (run_teacher, run_student)
     """DOCSTRING
 
     should check that all required params are present and have the correct type!
@@ -175,7 +175,7 @@ def check_network_properties(network_properties: dict):
     assert isinstance(network_properties["lr"], list)
 
 
-def check_simulation_settings(simulation_settings: dict):
+def check_simulation_settings(simulation_settings: dict):  # NOTE: used in experiment.py (run_teacher, run_student)
     """DOCSTRING
 
     should check that all required params are present and have the correct type!
@@ -203,7 +203,7 @@ def check_simulation_settings(simulation_settings: dict):
 # TODO: validation and so on!
 
 
-def run_teacher(
+def run_teacher(  # NOTE: used in run.py
     network_properties: dict,
     teacher_parameters: dict,
     simulation_settings: dict,
@@ -276,7 +276,7 @@ def run_teacher(
     return {"u_inp": u_inp, "u_target": u_target}, res
 
 
-def prepare_ordered_epoch(epoch_ids: np.ndarray, len_epoch: int) -> npt.NDArray:
+def prepare_ordered_epoch(epoch_ids: np.ndarray, len_epoch: int) -> npt.NDArray:  # NOTE: used in experiment.py (shuffle_training_data)
     """Append the indexes of the pattern in an odrdered manner in an epoch
 
     TODO
@@ -288,7 +288,7 @@ def prepare_ordered_epoch(epoch_ids: np.ndarray, len_epoch: int) -> npt.NDArray:
         return np.array([], dtype=int)
 
 
-def shuffle_training_data(
+def shuffle_training_data(  # NOTE: used in experiment.py (run_student)
     x_train: npt.ArrayLike,
     x_val: npt.ArrayLike,
     y_train: npt.ArrayLike,
@@ -349,7 +349,7 @@ def shuffle_training_data(
     return all_x, all_y, val_mask
 
 
-def draw_random_weights(
+def draw_random_weights(  # NOTE: used in experiment.py (run_teacher, run_student)
     limits: Union[list, tuple],
     seed: int,
     dims: list[int, int, int],
@@ -370,7 +370,7 @@ def draw_random_weights(
     return weights
 
 
-def run_student(
+def run_student(  # NOTE: used in run.py
     network_properties: dict,
     student_parameters: dict,
     simulation_settings: dict,
@@ -444,6 +444,7 @@ def run_student(
     return res
 
 
+# FIXME: delete
 def test_all():
     exp = ExperimentDescriptor("example_experiment.yaml")
 
@@ -538,6 +539,7 @@ def test_all():
     plt.show()
 
 
+# FIXME: delete!
 def test_teacher():
     network_properties = {
         "t_ref": 25,
@@ -590,6 +592,7 @@ def test_teacher():
         yaml.dump(res, f)
 
 
+# FIXME delete!
 def test_student():
     network_properties = {
         "t_ref": 25,

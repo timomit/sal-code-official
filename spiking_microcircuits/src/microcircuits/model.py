@@ -11,35 +11,32 @@ import numpy.typing as npt
 
 from .utils import MovingAverage, Tracker
 
-# TODO Declare all member in __slots__
-
-# TODO Declare my own type aliases:
-AllSpikes = list[list[float]]
-WeightsList = list[dict[str, npt.ArrayLike]]
+AllSpikes = list[list[float]]  # NOTE: used in model.py (InputLayer, Layer, OutputLayer)
+WeightsList = list[dict[str, npt.ArrayLike]]  # NOTE: used in experiment.py (draw_random_weights, Network.set_weights)
 
 
-def rect_psp(dt: npt.NDArray, tau_syn: float) -> npt.NDArray:
+def rect_psp(dt: npt.NDArray, tau_syn: float) -> npt.NDArray:  # NOTE: used in model.py (Layer.dendritic_voltages, OutputLayer.dendritic_voltages)
     return np.heaviside(dt, 1.0) * np.heaviside(-(dt - tau_syn), 0.0)
 
 
-def logistic(u: npt.NDArray, t_ref: float) -> npt.NDArray:
+def logistic(u: npt.NDArray, t_ref: float) -> npt.NDArray:  # NOTE: used in model.py (InputLayer.update_spks, Layer.update_pyr_spks, Layer.update_inn_spks, Layer.plasticity_up, OutputLayer.update_spks, OutputLayer.plasticity_up)
     return 1.0 / (1.0 + np.exp(-(u - np.log(t_ref))))
 
 
-def exp_stdp_kernel(dt: npt.NDArray, a: float, tau: float) -> npt.NDArray:
+def exp_stdp_kernel(dt: npt.NDArray, a: float, tau: float) -> npt.NDArray:  # NOTE: used in model.py (Layer.plasticity_down)
     return a * np.heaviside(dt, 0.0) * np.exp(-dt / tau)
 
 
-def loss_func(out: npt.NDArray, tgt: Union[npt.NDArray, float]):
+def loss_func(out: npt.NDArray, tgt: Union[npt.NDArray, float]):  # NOTE: used in model.py (Network.run)
     return np.sum((out - tgt) ** 2) / len(out)
 
 
-class InputLayer:
+class InputLayer:  # NOTE: used in model.py (Network.__init__)
     """(Virtual) input layer.
 
     Turns an input voltage into spike trains that are fed into the first layer."""
 
-    def __init__(
+    def __init__(  # NOTE: used in model.py (Network.__init__)
         self,
         dims: int,
         params: dict,
@@ -57,15 +54,15 @@ class InputLayer:
 
         self.set_params(params)
 
-    def set_params(self, params):
+    def set_params(self, params):  # NOTE: used in model.py (InputLayer.__init__)
         self.t_ref = params["t_ref"]
         self.n_last_spks = params["n_last_spks"]
 
-    def update_mempot(self, u_in: npt.NDArray):
+    def update_mempot(self, u_in: npt.NDArray):  # NOTE: used in model.py (Network.update_mempot)
         self.u_in[:] = u_in
         self.u_in_av.move(self.u_in)
 
-    def update_spks(self, t: float):
+    def update_spks(self, t: float):  # NOTE: used in model.py (Network.update_spks)
         self.r_in = logistic(self.u_in, self.t_ref)
         random_vals = self.rng.random(self.dims)
         for i in np.nonzero(random_vals < self.r_in)[0]:
@@ -76,18 +73,18 @@ class InputLayer:
                 self.last_spks[i, -1] = t
                 self.mean_rates_buffer[i] += 1.0
 
-    def calc_rates_pattern(self, t_pattern):
+    def calc_rates_pattern(self, t_pattern):  # NOTE: used in model.py (Network.calc_rates_pattern)
         self.mean_rates_pattern.append(self.mean_rates_buffer / t_pattern)
         self.mean_rates_buffer = np.zeros(self.dims)
 
-    def get_all_spks(self):
+    def get_all_spks(self):  # NOTE: used in model.py (Network.finalize_all_spks)
         return {"inp": self.all_spks}
 
 
-class Layer:
+class Layer:  # NOTE: used in model.py (Network.__init__)
     """Normal hidden layer with pyramidal and interneuron"""
 
-    def __init__(
+    def __init__(  # NOTE: used in model.py (Network.__init__)
         self,
         n_pyr: int,
         n_in: int,
@@ -134,8 +131,7 @@ class Layer:
 
         self.set_params(params)
 
-    def set_params(self, params: dict):
-        # TODO: replace all constants by CAPITAL LETTERS!
+    def set_params(self, params: dict):  # NOTE: used in model.py (Layer.__init__)
         self.n_last_spks = params["n_last_spks"]
         self.t_ref = params["t_ref"]
         self.tau_syn = params["tau_syn"]
@@ -147,14 +143,14 @@ class Layer:
         self.lr_up = params["lr"][self.LAYER_ID - 1]["up"]
         self.lr_down = params["lr"][self.LAYER_ID - 1]["down"]
 
-    def set_bias(self, bias: npt.ArrayLike, bias_next: npt.ArrayLike):
+    def set_bias(self, bias: npt.ArrayLike, bias_next: npt.ArrayLike):  # NOTE: used in model.py (Network.set_bias)
         np.copyto(dst=self.b_pyr, src=bias)
         np.copyto(dst=self.b_inn, src=bias_next)
 
     def set_weights_random(self):
         raise NotImplementedError
 
-    def set_weights(
+    def set_weights(  # NOTE: used in model.py (Network.set_weights, Network.set_symmetrization)
         self,
         w_up: Optional[npt.ArrayLike] = None,
         w_down: Optional[npt.ArrayLike] = None,
@@ -170,7 +166,7 @@ class Layer:
         if w_ip is not None:
             np.copyto(src=w_ip, dst=self.w_ip)
 
-    def get_weights(self) -> dict[str, npt.NDArray]:
+    def get_weights(self) -> dict[str, npt.NDArray]:  # NOTE: used in model.py (Network.get_weights)
         return {
             "w_up": self.w_up.copy(),
             "w_down": self.w_down.copy(),
@@ -178,12 +174,12 @@ class Layer:
             "w_pi": self.w_pi.copy(),
         }
 
-    def set_sps(self, w_up_next: npt.NDArray):
+    def set_sps(self, w_up_next: npt.NDArray):  # NOTE: used in model.py (Network.set_sps)
         # is it ok to just copy the weights by reference (no deep copy?)
         self.w_ip[:, :] = w_up_next
         self.w_pi[:, :] = -self.w_down
 
-    def update_pyr_spks(self, t: float):
+    def update_pyr_spks(self, t: float):  # NOTE: used in model.py (Layer.update_spks)
         r_pyr = logistic(self.u_pyr, self.t_ref)
         random_vals = self.rng.random(self.N_PYR)
         for i in np.nonzero(random_vals < r_pyr)[0]:
@@ -194,7 +190,7 @@ class Layer:
                 self.last_spks_pyr[i, -1] = t
                 self.rates_buffer_pyr[i] += 1.0
 
-    def update_inn_spks(self, t: float):
+    def update_inn_spks(self, t: float):  # NOTE: used in model.py (Layer.update_spks)
         r_inn = logistic(self.u_inn, self.t_ref)
         random_vals = self.rng.random(self.N_NEXT)
         for i in np.nonzero(random_vals < r_inn)[0]:
@@ -205,23 +201,23 @@ class Layer:
                 self.last_spks_inn[i, -1] = t
                 self.rates_buffer_inn[i] += 1.0
 
-    def update_spks(self, t: float):
+    def update_spks(self, t: float):  # NOTE: used in model.py (Network.update_spks)
         self.update_pyr_spks(t)
         self.update_inn_spks(t)
 
-    def calc_rates_pattern(self, t_pattern: float):
+    def calc_rates_pattern(self, t_pattern: float):  # NOTE: used in model.py (Network.calc_rates_pattern)
         self.rates_pattern_pyr.append(self.rates_buffer_pyr / t_pattern)
         self.rates_buffer_pyr.fill(0.0)
         self.rates_pattern_inn.append(self.rates_buffer_inn / t_pattern)
         self.rates_buffer_inn.fill(0.0)
 
-    def dendritic_voltages(
+    def dendritic_voltages(  # NOTE: used in model.py (Layer.update_pyr_mempot, Layer.update_inn_mempot)
         self, t: float, last_spks: npt.NDArray, weight: npt.NDArray
     ) -> npt.NDArray:
         psps = np.sum(rect_psp(t - last_spks, self.tau_syn), axis=1)
         return np.dot(weight, psps)
 
-    def update_pyr_mempot(
+    def update_pyr_mempot(  # NOTE: used in model.py (Layer.update_mempot)
         self,
         t: float,
         last_spks_in: npt.NDArray,
@@ -237,25 +233,25 @@ class Layer:
         self.u_pyr_av.move(self.u_pyr)
         self.v_bas_av.move(self.v_bas)
 
-    def update_inn_mempot(self, t: float):
+    def update_inn_mempot(self, t: float):  # NOTE: used in model.py (Layer.update_mempot)
         self.u_inn[:] = self.b_inn + self.dendritic_voltages(
             t, self.last_spks_pyr, self.w_ip
         )
 
-    def update_mempot(
+    def update_mempot(  # NOTE: used in model.py (Network.update_mempot)
         self, t: float, last_spks_in: npt.NDArray, last_spks_next: npt.NDArray
     ):
         self.update_pyr_mempot(t, last_spks_in, last_spks_next)
         self.update_inn_mempot(t)
 
-    def plasticity_up(self, t: float, last_spks_in: npt.NDArray):
+    def plasticity_up(self, t: float, last_spks_in: npt.NDArray):  # NOTE: used in model.py (Network.update_plasticity_up)
         now_spks_in = np.where(last_spks_in[:, -1] == t - 1, 1, 0)
         r_bas_hat = logistic(self.v_bas_av.val + self.b_pyr, self.t_ref)
         r_pyr_hat = logistic(self.u_pyr_av.val, self.t_ref)
         delta_up = np.outer(r_pyr_hat - r_bas_hat, now_spks_in)
         self.w_up[:, :] += self.lr_up * delta_up
 
-    def plasticity_down(self, t: float, last_spks_next: npt.NDArray):
+    def plasticity_down(self, t: float, last_spks_next: npt.NDArray):  # NOTE: used in model.py (Network.update_plasticity_down)
         self.stdp.fill(0.0)
 
         post_spk_idx = np.array(np.nonzero(self.last_spks_pyr == t))
@@ -282,20 +278,20 @@ class Layer:
 
         self.w_down[:, :] += self.lr_down * self.stdp
 
-    def copybackprob(self, w_up_next: npt.NDArray):
+    def copybackprob(self, w_up_next: npt.NDArray):  # NOTE: used in model.py (Network.set_copybackprop, Network.update_plasticity_up)
         self.w_down[:, :] = w_up_next.T
 
-    def get_all_spks(self):
+    def get_all_spks(self):  # NOTE: used in model.py (Network.finalize_all_spks)
         return {"pyr": self.all_spks_pyr, "inn": self.all_spks_inn}
 
 
-class OutputLayer:
+class OutputLayer:  # NOTE: used in model.py (Network.__init__)
     """Output Layer
 
     # TODO:
     """
 
-    def __init__(
+    def __init__(  # NOTE: used in model.py (Network.__init__)
         self,
         n_out: int,
         n_in: int,
@@ -333,27 +329,27 @@ class OutputLayer:
 
         self.set_params(params)
 
-    def set_params(self, params: dict):
+    def set_params(self, params: dict):  # NOTE: used in model.py (OutputLayer.__init__)
         self.n_last_spks = params["n_last_spks"]
         self.t_ref = params["t_ref"]
         self.tau_syn = params["tau_syn"]
         self.lam_nudge = params["lambda_nudge"]
         self.lr_up = params["lr"][self.LAYER_ID - 1]["up"]
 
-    def set_bias(self, bias: npt.ArrayLike):
+    def set_bias(self, bias: npt.ArrayLike):  # NOTE: used in model.py (Network.set_bias)
         np.copyto(dst=self.b_pyr, src=bias)
 
     def set_weights_random(self):
         raise NotImplementedError
 
-    def set_weights(self, w_up: Optional[npt.ArrayLike] = None):
+    def set_weights(self, w_up: Optional[npt.ArrayLike] = None):  # NOTE: used in model.py (Network.set_weights)
         if w_up is not None:
             np.copyto(dst=self.w_up, src=w_up)
 
-    def get_weights(self) -> dict[str, npt.NDArray]:
+    def get_weights(self) -> dict[str, npt.NDArray]:  # NOTE: used in model.py (Network.get_weights)
         return {"up": self.w_up.copy()}
 
-    def update_spks(self, t: float):
+    def update_spks(self, t: float):  # NOTE: used in model.py (Network.update_spks)
         r_pyr = logistic(self.u_pyr, self.t_ref)
         random_vals = self.rng.random(self.N_OUT)
         for i in np.nonzero(random_vals < r_pyr)[0]:
@@ -364,17 +360,17 @@ class OutputLayer:
                 self.last_spks_pyr[i, -1] = t
                 self.rates_buffer_pyr[i] += 1.0
 
-    def calc_rates_pattern(self, t_pattern: float):
+    def calc_rates_pattern(self, t_pattern: float):  # NOTE: used in model.py (Network.calc_rates_pattern)
         self.rates_pattern_pyr.append(self.rates_buffer_pyr / t_pattern)
         self.rates_buffer_pyr.fill(0.0)
 
-    def dendritic_voltages(
+    def dendritic_voltages(  # NOTE: used in model.py (OutputLayer.update_mempot)
         self, t: float, last_spks: npt.NDArray, weight: npt.NDArray
     ) -> npt.NDArray:
         psps = np.sum(rect_psp(t - last_spks, self.tau_syn), axis=1)
         return np.dot(weight, psps)
 
-    def update_mempot(
+    def update_mempot(  # NOTE: used in model.py (Network.update_mempot)
         self, t: float, last_spks_in: npt.NDArray, u_tgt: Optional[npt.NDArray]
     ):
         self.v_bas[:] = self.dendritic_voltages(t, last_spks_in, self.w_up)
@@ -389,24 +385,24 @@ class OutputLayer:
         self.u_pyr_av.move(self.u_pyr)
         self.u_tgt_av.move(self.u_tgt)
 
-    def plasticity_up(self, t: float, last_spks_in: npt.NDArray):
+    def plasticity_up(self, t: float, last_spks_in: npt.NDArray):  # NOTE: used in model.py (Network.update_plasticity_up)
         now_spks_in = np.where(last_spks_in[:, -1] == t - 1, 1, 0)
         r_bas_hat = logistic(self.v_bas_av.val + self.b_pyr, self.t_ref)
         r_pyr_hat = logistic(self.u_pyr_av.val, self.t_ref)
         delta_up = np.outer(r_pyr_hat - r_bas_hat, now_spks_in)
         self.w_up[:, :] += self.lr_up * delta_up
 
-    def get_all_spks(self) -> dict[str, list]:
+    def get_all_spks(self) -> dict[str, list]:  # NOTE: used in model.py (Network.finalize_all_spks)
         return {"pyr": self.all_spks_pyr}
 
 
-class Network:
+class Network:  # NOTE: used in experiment.py (run_teacher, run_student)
     """Network of layered cortical microcircuits
 
     # TODO:
     """
 
-    def __init__(self, params: dict, poisson_seed: int) -> None:
+    def __init__(self, params: dict, poisson_seed: int) -> None:  # NOTE: used in experiment.py (run_teacher, run_student)
         self.dims: list = params["dims"]
         self.n_dims: int = len(self.dims)
         self.len_learning_lag: int = params["learning_lag"]
@@ -441,17 +437,17 @@ class Network:
         )
         self.t = 0.0
 
-    def set_weights(self, new_weights: WeightsList) -> None:
+    def set_weights(self, new_weights: WeightsList) -> None:  # NOTE: used in experiment.py (run_teacher, run_student)
         assert (
             len(new_weights) == self.n_dims - 1
         ), f"new_weights should have {self.n_dims - 1} entries, but has {len(new_weights)}."  # noqa
         for i in range(1, self.n_dims):
             self.layers[i].set_weights(**new_weights[i - 1])
 
-    def get_weights(self) -> WeightsList:
+    def get_weights(self) -> WeightsList:  # NOTE: unused
         return [layer.get_weights() for layer in self.layers[1:]]
 
-    def set_bias(self, new_bias: list[npt.ArrayLike]) -> None:
+    def set_bias(self, new_bias: list[npt.ArrayLike]) -> None:  # NOTE: used in experiment.py (run_teacher, run_student)
         assert (
             len(new_bias) == self.n_dims - 1
         ), f"new_bias should have {self.n_dims - 1} entries, but has {len(new_bias)}."  # noqa
@@ -459,34 +455,34 @@ class Network:
             self.layers[i].set_bias(new_bias[i - 1], new_bias[i])
         self.layers[-1].set_bias(new_bias[-1])
 
-    def set_sps(self):
+    def set_sps(self):  # NOTE: used in model.py (Network.distribute_weights, Network.unset_symmetrization, Network.update_plasticity_up)
         for i in range(1, self.n_dims - 1):
             self.layers[i].set_sps(self.layers[i + 1].w_up)
 
-    def set_copybackprop(self):
+    def set_copybackprop(self):  # NOTE: used in model.py (Network.distribute_weights)
         for i in range(1, self.n_dims - 1):
             self.layers[i].copybackprob(self.layers[i + 1].w_up)
 
-    def set_record_all_spks(self, val: bool):
+    def set_record_all_spks(self, val: bool):  # NOTE: used in model.py (Network.run)
         for layer in self.layers:
             layer.record_all_spks = val
 
-    def set_symmetrization(self):
+    def set_symmetrization(self):  # NOTE: used in model.py (Network.run_pattern)
         for i in range(1, self.n_dims - 1):
             self.layers[i].lam_api = 1.0
             self.layers[i].set_weights(w_pi=0.0, w_ip=0.0)
 
-    def unset_symmetrization(self):
+    def unset_symmetrization(self):  # NOTE: used in model.py (Network.run_pattern)
         for i in range(1, self.n_dims - 1):
             self.layers[i].lam_api = self.lam_api
         self.set_sps()
 
-    def distribute_weights(self, update_down=True):
+    def distribute_weights(self, update_down=True):  # NOTE: used in experiment.py (run_teacher, run_student)
         if not update_down:
             self.set_copybackprop()
         self.set_sps()
 
-    def init_tracker(self, rec_quants: list[list[str]], num_samples, compress_len):
+    def init_tracker(self, rec_quants: list[list[str]], num_samples, compress_len):  # NOTE: used in model.py (Network.run)
         assert len(rec_quants) == len(
             self.dims
         ), f"rec_quants should have {self.n_dims} entries, but has {len(rec_quants)}."  # noqa
@@ -544,12 +540,12 @@ class Network:
             )
         self.records.append(rcs)
 
-    def update_spks(self):
+    def update_spks(self):  # NOTE: used in model.py (Network.update_step)
         # update input spikes:
         for layer in self.layers:
             layer.update_spks(self.t)
 
-    def update_mempot(self, u_in: npt.NDArray, u_tgt: Optional[npt.NDArray]):
+    def update_mempot(self, u_in: npt.NDArray, u_tgt: Optional[npt.NDArray]):  # NOTE: used in model.py (Network.update_step)
         # update input_mempot:
         self.layers[0].update_mempot(u_in)
         self.layers[1].update_mempot(
@@ -563,7 +559,7 @@ class Network:
             )
         self.layers[-1].update_mempot(self.t, self.layers[-2].last_spks_pyr, u_tgt)
 
-    def update_plasticity_up(self):
+    def update_plasticity_up(self):  # NOTE: used in model.py (Network.update_step)
         if self.update_up:
             self.layers[1].plasticity_up(self.t, self.layers[0].last_spks)
             for i in range(2, self.n_dims):
@@ -574,12 +570,12 @@ class Network:
         if self.set_sps_on:
             self.set_sps()
 
-    def update_plasticity_down(self):
+    def update_plasticity_down(self):  # NOTE: used in model.py (Network.update_step)
         if self.update_down:
             for i in range(1, self.n_dims - 1):
                 self.layers[i].plasticity_down(self.t, self.layers[i + 1].last_spks_pyr)
 
-    def update_step(
+    def update_step(  # NOTE: used in model.py (Network.run_pattern)
         self,
         u_in: npt.NDArray,
         u_tgt: Optional[npt.NDArray],
@@ -593,12 +589,12 @@ class Network:
         if plasticity_down_on:
             self.update_plasticity_down()
 
-    def record_quantities(self):
+    def record_quantities(self):  # NOTE: used in model.py (Network.run_pattern)
         for rcs in self.records:
             for quant in rcs.values():
                 quant.record()
 
-    def finalize_tracker(self):
+    def finalize_tracker(self):  # NOTE: used in model.py (Network.run)
         tracker_res = []
         for rcs in self.records:
             res = {}
@@ -608,7 +604,7 @@ class Network:
             tracker_res.append(res)
         return tracker_res
 
-    def finalize_mean_rates(self):
+    def finalize_mean_rates(self):  # NOTE: used in model.py (Network.run)
         mean_spks = [{"input": np.array(self.layers[0].mean_rates_pattern)}]
         for layer in self.layers[1:-1]:
             mean_spks.append(
@@ -620,14 +616,14 @@ class Network:
         mean_spks.append({"pyr": np.array(self.layers[-1].rates_pattern_pyr)})
         return mean_spks
 
-    def finalize_all_spks(self) -> list[dict[str, list]]:
+    def finalize_all_spks(self) -> list[dict[str, list]]:  # NOTE: used in model.py (Network.run)
         return [layer.get_all_spks() for layer in self.layers]
 
-    def calc_rates_pattern(self):
+    def calc_rates_pattern(self):  # NOTE: used in model.py (Network.run_pattern)
         for layer in self.layers:
             layer.calc_rates_pattern(self.t_pattern)
 
-    def run_pattern(
+    def run_pattern(  # NOTE: used in model.py (Network.run)
         self,
         u_inp: npt.NDArray,
         pattern_id,
@@ -660,7 +656,7 @@ class Network:
         if symmetrization:
             self.unset_symmetrization()
 
-    def run(
+    def run(  # NOTE: used in experiment.py (run_teacher, run_student)
         self,
         u_inp: npt.NDArray,
         t_pattern: int,
@@ -696,7 +692,6 @@ class Network:
         self.init_tracker(recorded_quantities, num_rec_samples, compress_len)
         self.set_record_all_spks(record_all_spks)
 
-        # TODO: implement validation and epochs counter
         total_epoch_len = len_epoch + validation_len
 
         self.u_out_rec = np.empty((u_inp.shape[0], self.dims[-1]))
