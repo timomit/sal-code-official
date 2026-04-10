@@ -20,7 +20,7 @@ NUM_SEEDS=${1:-5}
 
 # Resolve paths relative to this script so it can be called from anywhere
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-TRAIN="$SCRIPT_DIR/../train_bm_hpo.py"
+TRAIN="$SCRIPT_DIR/../train_bm.py"
 
 # --- Step 1: generate per-sweep parameter files ---
 echo "Generating parameter files..."
