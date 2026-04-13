@@ -4,7 +4,6 @@ Uses tests/fixtures/microcircuits_smoke.yaml with reduced number of pattern and
 epoch duration, to keep runtime well under the 60 s timeout.
 """
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,11 +17,9 @@ EXAMPLE_YAML = Path(__file__).parent / "fixtures" / "microcircuits_smoke.yaml"
 
 @pytest.mark.timeout(60)
 def test_microcircuits_run(tmp_path):
-    config = tmp_path / "example.yaml"
-    shutil.copy(EXAMPLE_YAML, config)
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), str(config), "0", "-o", str(tmp_path)],
+        [sys.executable, str(SCRIPT), str(EXAMPLE_YAML), "0", "-o", str(tmp_path)],
         capture_output=True,
         text=True,
     )
