@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from conftest import SCRIPTS_DIR
 
-SCRIPT = SCRIPTS_DIR / "microcircuits" / "run.py"
+SCRIPT = SCRIPTS_DIR / "microcircuits" / "train_mc.py"
 EXAMPLE_YAML = Path(__file__).parent / "fixtures" / "microcircuits_smoke.yaml"
 
 
@@ -22,7 +22,7 @@ def test_microcircuits_run(tmp_path):
     shutil.copy(EXAMPLE_YAML, config)
 
     result = subprocess.run(
-        [sys.executable, str(SCRIPT), str(config), "0"],
+        [sys.executable, str(SCRIPT), str(config), "0", "-o", str(tmp_path)],
         capture_output=True,
         text=True,
     )
