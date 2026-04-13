@@ -72,20 +72,18 @@ A minimal working example for a simulation of a spiking sampling network is prov
 To reproduce the raw data for figure 4 and 5, the scripts and directories in `scripts/ssn` are available. A single simulation can be executed on a single CPU core and typically takes 30 minutes. For each of the six experiment types (i.e. synaptic noise and plasticity noise scenario each with and without SAL and Kolen-Pollack), a total of 120 independent runs are required. We therefore recommend the simulations to be run in parallel on a HPC cluster. The raw data is then saved in the folder `results`.
 
 Each subdirectory of `scripts/ssn/` contains a `exp.yaml` parameter file and a `change_params.py` python script. 
-1. Run `bash run.sh` to start the simulations. It will first call `change_paramters.py` and then spawn the simulations. It is recommended to start this through slurm with 120 parallel tasks.
+1. Run `bash run.sh` to start the simulations. It will first call `change_paramters.py` and then spawn the simulations.
 2. The raw data can be plotted with `scripts/ssn/plot_fig.ipynb`.
 
 #### Figure 6
 
-A minimal working example for a simulation of a spiking microcircuits student teacher network is provided by `scripts/microcircuits/run.py` and the corresponding parameter file `example.yaml`. It can be executed by `python run.py example.yaml 0`.
+A minimal working example for a simulation of a spiking microcircuits student teacher network is provided by `scripts/microcircuits/train_mc.py` and the corresponding parameter file `example.yaml`. It can be executed by `python train_mc.py example.yaml`.
 
 To reproduce the raw data for figure 6, follow the same steps as for the sampling networks. 
 
-In each subdirectory of `scripts/microcircuits`, do
-1. `python change_params.py` to produce the parameter files for the 20 runs with different seeds.
-2. Launch the runs with `bash launcher.sh`. The raw data is stored in `results/microcircuits`
-
-The raw data can be plotted with `scripts/microcircuits/plot_fig.ipynb`.
+1. In each subdirectory of `scripts/microcircuits`, (i.e. `bp` for backpropagation, `fa` for feedback alignment and `sal` for SAL), execute `run.sh`. This will create the paramter yaml files for 20 runs with individual seeds and then spawn 20 parallel processes with the simulations. A simulation takes ca XXX minutes to finish.
+The raw simulation results are stored in `results/microcircuits`.
+2. The raw data can be plotted with `scripts/microcircuits/plot_fig.ipynb`.
 
 #### Figure 7
 
