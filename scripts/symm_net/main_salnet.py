@@ -78,7 +78,14 @@ dataset = cifar10
     group_tags,
     param_file,
     output_dir,
+    seed,
+    run_dir_override,
+    section,
 ) = settings_loader()
+
+# set random seeds for reproducibility
+torch.manual_seed(seed)
+np.random.seed(seed)
 
 # some general checks:
 assert not (params["use_backprop"] and sal_params["use_sal"])
@@ -119,7 +126,12 @@ def append_metric(metrics_dict: dict[str, Any], key: str, value: float) -> None:
 # Data tracking setup
 # ---------------------------
 
-run_dir = create_run_dirs(base_dir=output_dir, tags=tags)
+if run_dir_override is not None:
+    run_dir = run_dir_override
+    os.makedirs(os.path.join(run_dir, "figs", "weights"), exist_ok=True)
+    os.makedirs(os.path.join(run_dir, "checkpoints"), exist_ok=True)
+else:
+    run_dir = create_run_dirs(base_dir=output_dir, tags=tags)
 
 # copy param file to run root
 if param_file is not None:
@@ -131,6 +143,8 @@ metrics: dict[str, Any] = {
     "sal_params": sal_params,
     "rdd_params": rdd_params,
     "dataset": dataset.__name__,
+    "algo": section,
+    "seed": seed,
     "scalars": {},
 }
 

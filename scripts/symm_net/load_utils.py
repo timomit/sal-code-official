@@ -85,6 +85,9 @@ def settings_loader() -> tuple[
     list[str],
     str | None,
     str,
+    int,
+    str | None,
+    str | None,
 ]:
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", type=str, help="Path to parameter file.")
@@ -96,6 +99,14 @@ def settings_loader() -> tuple[
     parser.add_argument("--group_tags", type=str)
     parser.add_argument(
         "--output-dir", type=str, default="../../results/symm_net", dest="output_dir"
+    )
+    parser.add_argument("--seed", type=int, default=0, help="Random seed.")
+    parser.add_argument(
+        "--run-dir",
+        type=str,
+        default=None,
+        dest="run_dir",
+        help="Exact output directory; bypasses create_run_dirs() when set.",
     )
     args = parser.parse_args()
 
@@ -137,4 +148,7 @@ def settings_loader() -> tuple[
         group_tags_list,
         args.f,
         args.output_dir,
+        args.seed,
+        args.run_dir,
+        args.s,
     )
