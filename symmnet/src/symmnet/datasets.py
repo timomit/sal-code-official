@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
+
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
+_REPO_ROOT = Path(__file__).parents[3]
+_DEFAULT_DATA_DIR = str(_REPO_ROOT / "datasets")
+
 
 def cifar10(
-    batch_size: int, path: str = "../datasets"
+    batch_size: int, path: str = _DEFAULT_DATA_DIR
 ) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (32, 32)
@@ -46,7 +51,7 @@ def cifar10(
 
 
 def mnist(
-    batch_size: int, path: str = "../datasets"
+    batch_size: int, path: str = _DEFAULT_DATA_DIR
 ) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 1
     shape = (28, 28)
@@ -86,7 +91,7 @@ def mnist(
 
 
 def fmnist(
-    batch_size: int, path: str = "../datasets"
+    batch_size: int, path: str = _DEFAULT_DATA_DIR
 ) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 1
     shape = (28, 28)
@@ -126,7 +131,7 @@ def fmnist(
 
 
 def imagenette(
-    batch_size: int, path: str = "../datasets"
+    batch_size: int, path: str = _DEFAULT_DATA_DIR
 ) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (160, 160)
@@ -166,7 +171,7 @@ def imagenette(
 
 
 def svhn(
-    batch_size: int, path: str = "../datasets"
+    batch_size: int, path: str = _DEFAULT_DATA_DIR
 ) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (32, 32)
