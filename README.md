@@ -81,7 +81,7 @@ A minimal working example for a simulation of a spiking microcircuits student te
 
 To reproduce the raw data for figure 6, follow the same steps as for the sampling networks. 
 
-1. In each subdirectory of `scripts/microcircuits`, (i.e. `bp` for backpropagation, `fa` for feedback alignment and `sal` for SAL), execute `run.sh`. This will create the paramter yaml files for 20 runs with individual seeds and then spawn 20 parallel processes with the simulations. A simulation takes ca XXX minutes to finish.
+1. In each subdirectory of `scripts/microcircuits`, (i.e. `bp` for backpropagation, `fa` for feedback alignment and `sal` for SAL), execute `run.sh`. This will create the paramter yaml files for 20 runs with individual seeds and then spawn 20 parallel processes with the simulations. A simulation takes ca four hours to finish.
 The raw simulation results are stored in `results/microcircuits`.
 2. The raw data can be plotted with `scripts/microcircuits/plot_fig.ipynb`.
 
