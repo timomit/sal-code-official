@@ -69,9 +69,9 @@ def main() -> None:
     done = 0
 
     print(f"Sweep: {total} runs → {sweep_dir}")
-    print(f"  datasets : {args.datasets}")
-    print(f"  algos    : {args.algos}")
-    print(f"  seeds    : 0 … {args.n_seeds - 1}")
+    print(f"  datasets: {args.datasets}")
+    print(f"  algos: {args.algos}")
+    print(f"  seeds: 0 … {args.n_seeds - 1}")
     print()
 
     for dataset in args.datasets:
