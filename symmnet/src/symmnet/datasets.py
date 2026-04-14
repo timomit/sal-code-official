@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 import torch
+from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 
-def cifar10(batch_size, path="../datasets"):
+def cifar10(
+    batch_size: int, path: str = "../datasets"
+) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (32, 32)
     # Data augmentation and normalization for training
@@ -42,7 +45,9 @@ def cifar10(batch_size, path="../datasets"):
     return train_loader, test_loader, n_channels, shape
 
 
-def mnist(batch_size, path="../datasets"):
+def mnist(
+    batch_size: int, path: str = "../datasets"
+) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 1
     shape = (28, 28)
     # Data augmentation and normalization for training
@@ -80,7 +85,9 @@ def mnist(batch_size, path="../datasets"):
     return train_loader, test_loader, n_channels, shape
 
 
-def fmnist(batch_size, path="../datasets"):
+def fmnist(
+    batch_size: int, path: str = "../datasets"
+) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 1
     shape = (28, 28)
     # Data augmentation and normalization for training
@@ -118,7 +125,9 @@ def fmnist(batch_size, path="../datasets"):
     return train_loader, test_loader, n_channels, shape
 
 
-def imagenette(batch_size, path="../datasets"):
+def imagenette(
+    batch_size: int, path: str = "../datasets"
+) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (160, 160)
     # Data augmentation and normalization for training
@@ -156,7 +165,9 @@ def imagenette(batch_size, path="../datasets"):
     return train_loader, test_loader, n_channels, shape
 
 
-def svhn(batch_size, path="../datasets"):
+def svhn(
+    batch_size: int, path: str = "../datasets"
+) -> tuple[DataLoader, DataLoader, int, tuple[int, int]]:
     n_channels = 3
     shape = (32, 32)
     # Data augmentation and normalization for training

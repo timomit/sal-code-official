@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 from datetime import datetime
+from typing import Any
 
 import matplotlib
 
@@ -41,7 +42,7 @@ n_layers = 4
 # ---------------------------
 
 
-def parse_tags(s):
+def parse_tags(s: str | None) -> list[str]:
     return [tag.strip() for tag in s.split(",")] if s else []
 
 
@@ -70,7 +71,7 @@ group_tags = parse_tags(args.group_tags) if args.group_tags else []
 # ---------------------------
 
 
-def create_run_dirs(base_dir="runs", tags=None):
+def create_run_dirs(base_dir: str = "runs", tags: list[str] | None = None) -> str:
     """Create a timestamped run directory with subfolders for figs."""
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     tag_str = "_".join(tags) if tags else "pure_sal"
@@ -81,13 +82,13 @@ def create_run_dirs(base_dir="runs", tags=None):
     return run_dir
 
 
-def save_json(obj, path):
+def save_json(obj: Any, path: str) -> None:
     """Serialize obj to a JSON file at path."""
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
 
 
-def append_metric(scalars, key, value):
+def append_metric(scalars: dict[str, Any], key: str, value: float) -> None:
     """Append a scalar value to a list under key in scalars."""
     if key not in scalars:
         scalars[key] = []
@@ -100,7 +101,7 @@ def append_metric(scalars, key, value):
 
 run_dir = create_run_dirs(base_dir=args.output_dir, tags=tags)
 
-metrics = {
+metrics: dict[str, Any] = {
     "params": params,
     "scalars": {},
 }
@@ -125,7 +126,7 @@ net.to(device)
 # ---------------------------
 
 
-def eval_and_log_symmetry(scalars, epoch):
+def eval_and_log_symmetry(scalars: dict[str, Any], epoch: int) -> None:
     """Log symmetry metrics and save scatter plots every PLOT_INTERVAL epochs."""
     for i in range(n_layers - 1):
         w = net.layers[i + 1].weight.detach()
@@ -157,7 +158,7 @@ def eval_and_log_symmetry(scalars, epoch):
             plt.close(fig)
 
 
-def save_final_plots(metrics, run_dir):
+def save_final_plots(metrics: dict[str, Any], run_dir: str) -> None:
     """Generate and save final summary plots for symmetry angle and corrcoef."""
     scalars = metrics["scalars"]
     figs_dir = os.path.join(run_dir, "figs")
@@ -194,7 +195,7 @@ def save_final_plots(metrics, run_dir):
 # ---------------------------
 
 
-def main():
+def main() -> None:
     # log symmetry before any training
     eval_and_log_symmetry(metrics["scalars"], epoch=0)
     save_json(metrics, os.path.join(run_dir, "metrics.json"))

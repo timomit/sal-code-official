@@ -1,7 +1,9 @@
 """Define the architecture of the spiking RDD net."""
 
 import numpy as np
+import numpy.typing as npt
 import torch
+import torch.nn as nn
 
 from .rdd_layers import SpikingFA
 
@@ -9,7 +11,7 @@ from .rdd_layers import SpikingFA
 class RDDNetBase:
     """This is new!"""
 
-    def __init__(self, layer_dims):
+    def __init__(self, layer_dims: list[int]) -> None:
         self.n_layers = len(layer_dims)
         assert self.n_layers >= 2, "The network needs at least two layers!"
         self.classification_layers = []
@@ -21,7 +23,7 @@ class RDDNetBase:
             )
         self.classification_layers.append(SpikingFA(layer_dims[-1], layer_dims[-2]))
 
-    def out(self, *args):
+    def out(self, *args: npt.NDArray) -> None:
         """args must be the driving_spike_hist"""
         assert len(args) == len(self.classification_layers) - 1
 
@@ -43,14 +45,14 @@ class RDDNetBase:
         # last Layer: receives feedforward from penultimate layer, no feedback, no external drive
         self.classification_layers[-1].update(self.classification_layers[-2].spike_hist)
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the state of all SpikingFA layers (membrane potentials, spike history, etc.).
         """
         for layer in self.classification_layers:
             layer.reset()
 
-    def update_fb_weights(self):
+    def update_fb_weights(self) -> None:
         """
         Updates the feedback weights in all but the last SpikingFA layer.
         """
@@ -73,7 +75,7 @@ class RDDNet:
     TODO: make this inherit from RDDNetBase!
     """
 
-    def __init__(self, layer_dims):
+    def __init__(self, layer_dims: list[int]) -> None:
         """
         Initializes the RDDNet with a fixed architecture of SpikingFA layers.
         """
@@ -88,7 +90,7 @@ class RDDNet:
         )
         self.classification_layers.append(SpikingFA(layer_dims[3], layer_dims[2]))
 
-    def copy_weights_from(self, layers):
+    def copy_weights_from(self, layers: list[nn.Module]) -> None:
         """
         Copies weights and feedback weights from the linear layers of the
         corresponting pytorch ANN.
@@ -116,7 +118,9 @@ class RDDNet:
             layers[4].bias.detach().cpu().numpy().astype(np.float32)[:, np.newaxis],
         )
 
-    def copy_weights_to(self, layers, device):
+    def copy_weights_to(
+        self, layers: list[nn.Module], device: torch.device | str
+    ) -> None:
         """
         Copies feedback weights from the SpikingFA layers back to the corresponding
         PyTorch layers, typically after RDD-based updates.
@@ -136,7 +140,12 @@ class RDDNet:
             self.classification_layers[2].fb_weight.astype(np.float32).T
         ).to(device)
 
-    def out(self, driving_spike_hist_1, driving_spike_hist_2, driving_spike_hist_3):
+    def out(
+        self,
+        driving_spike_hist_1: npt.NDArray | None,
+        driving_spike_hist_2: npt.NDArray | None,
+        driving_spike_hist_3: npt.NDArray | None,
+    ) -> None:
         """
         Sequentially updates each SpikingFA layer given the driving spike histories
         and the spike histories of adjacent layers.
@@ -167,14 +176,14 @@ class RDDNet:
         # Layer 3: receives feedforward from layer 2, no feedback, no external drive
         self.classification_layers[3].update(self.classification_layers[2].spike_hist)
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Resets the state of all SpikingFA layers (membrane potentials, spike history, etc.).
         """
         for layer in self.classification_layers:
             layer.reset()
 
-    def update_fb_weights(self):
+    def update_fb_weights(self) -> None:
         """
         Updates the feedback weights in all but the last SpikingFA layer.
         """

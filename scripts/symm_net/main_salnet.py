@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 from datetime import datetime
+from typing import Any
 
 import matplotlib
 
@@ -11,6 +12,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np  # noqa
 import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch import Tensor
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from load_utils import settings_loader
@@ -85,7 +90,7 @@ assert not (sal_params["use_sal"] and rdd_params["use_rdd"])
 # ---------------------------
 
 
-def create_run_dirs(base_dir="runs", tags=None):
+def create_run_dirs(base_dir: str = "runs", tags: list[str] | None = None) -> str:
     """Create a timestamped run directory with subfolders for figs and checkpoints."""
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     tag_str = "_".join(tags) if tags else "run"
@@ -97,13 +102,13 @@ def create_run_dirs(base_dir="runs", tags=None):
     return run_dir
 
 
-def save_json(obj, path):
+def save_json(obj: Any, path: str) -> None:
     """Serialize obj to a JSON file at path."""
     with open(path, "w") as f:
         json.dump(obj, f, indent=2)
 
 
-def append_metric(metrics_dict, key, value):
+def append_metric(metrics_dict: dict[str, Any], key: str, value: float) -> None:
     """Append a scalar value to a list under key in metrics_dict."""
     if key not in metrics_dict:
         metrics_dict[key] = []
@@ -121,7 +126,7 @@ if param_file is not None:
     shutil.copy(param_file, os.path.join(run_dir, os.path.basename(param_file)))
 
 # in-memory metrics store
-metrics = {
+metrics: dict[str, Any] = {
     "params": params,
     "sal_params": sal_params,
     "rdd_params": rdd_params,
@@ -188,20 +193,27 @@ if rdd_params["use_rdd"]:
     from symmnet import RDDNet, dt, input_rate, mem
 
     rdd_net = RDDNet(net.feature_layers_sizes)
-    symm_losses = [[] for _ in range(3)]
-    decay_losses = [[] for _ in range(3)]
-    sparse_losses = [[] for _ in range(3)]
-    self_losses = [[] for _ in range(3)]
-    amp_losses = [[] for _ in range(3)]
-    info_losses = [[] for _ in range(3)]
-    corr_percents = [[] for _ in range(3)]
+    symm_losses: list[list[float]] = [[] for _ in range(3)]
+    decay_losses: list[list[float]] = [[] for _ in range(3)]
+    sparse_losses: list[list[float]] = [[] for _ in range(3)]
+    self_losses: list[list[float]] = [[] for _ in range(3)]
+    amp_losses: list[list[float]] = [[] for _ in range(3)]
+    info_losses: list[list[float]] = [[] for _ in range(3)]
+    corr_percents: list[list[float]] = [[] for _ in range(3)]
 
 # ---------------------------
 # Training and Evaluation Functions
 # ---------------------------
 
 
-def train(model, optimizer, criterion, train_loader, device, metrics):
+def train(
+    model: nn.Module,
+    optimizer: optim.Optimizer,
+    criterion: nn.Module,
+    train_loader: DataLoader,
+    device: str,
+    metrics: dict[str, Any],
+) -> None:
     """Standard training loop for one epoch."""
     model.train()
     train_loss = 0
@@ -232,7 +244,13 @@ def train(model, optimizer, criterion, train_loader, device, metrics):
     append_metric(metrics["scalars"], "accuracy/train", 100 * correct / total)
 
 
-def test(model, criterion, test_loader, device, metrics):
+def test(
+    model: nn.Module,
+    criterion: nn.Module,
+    test_loader: DataLoader,
+    device: str,
+    metrics: dict[str, Any],
+) -> None:
     """Evaluation loop on the test set."""
     model.eval()
     total_loss = 0
@@ -261,7 +279,7 @@ def test(model, criterion, test_loader, device, metrics):
     append_metric(metrics["scalars"], "accuracy/test", 100 * correct / total)
 
 
-def train_sal(sal_net, sal_params):
+def train_sal(sal_net: SALNet, sal_params: dict[str, Any]) -> list[Tensor]:
     """Run one SAL phase (spike-based feedback weight update)."""
     progress_bar = tqdm(range(sal_params["len_epoch"] * sal_params["t_ref"]))
     with torch.no_grad():
@@ -273,7 +291,12 @@ def train_sal(sal_net, sal_params):
     return dw
 
 
-def eval_symmetry(net, metrics, run_dir, epoch):
+def eval_symmetry(
+    net: ConvNet,
+    metrics: dict[str, Any],
+    run_dir: str,
+    epoch: int,
+) -> None:
     """Evaluate forward/feedback weight symmetry; save scatter plots every SCATTER_INTERVAL epochs."""
     weights = list(net.parameters_weight())
     fb_weights = list(net.parameters_fb_weight(ignore_require_grad=True))
@@ -313,7 +336,7 @@ def eval_symmetry(net, metrics, run_dir, epoch):
             plt.close(fig)
 
 
-def save_final_plots(metrics, run_dir):
+def save_final_plots(metrics: dict[str, Any], run_dir: str) -> None:
     """Generate and save final summary plots for loss, accuracy, and symmetry angle."""
     scalars = metrics["scalars"]
     figs_dir = os.path.join(run_dir, "figs")
@@ -359,7 +382,7 @@ def save_final_plots(metrics, run_dir):
 # ---------------------------
 
 
-def train_rdd():
+def train_rdd() -> None:
     """Implement the spike-based RDD feed-back learning."""
     rdd_net.reset()
 
@@ -560,7 +583,7 @@ def train_rdd():
 # ---------------------------
 
 
-def main():
+def main() -> None:
     eval_symmetry(net, metrics, run_dir, epoch=0)
 
     for epoch in range(params["n_epochs"]):
