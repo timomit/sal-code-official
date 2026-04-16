@@ -1,18 +1,33 @@
 #!/usr/bin/env python3
-"""Sweep launcher for convenient reproduction of data for SymmNet paper figure
+"""Generate a jobs.sh file for SLURM array job submission.
 
-Runs dataset × algo × seed combinations.
+This is step 1 of the SLURM workflow for reproducing the SymmNet paper figure.
+Each line of the output file contains one `python main_salnet.py ...` command,
+one per dataset × algo × seed combination. Already-completed runs (those with a
+metrics.json in the expected output directory) are skipped.
 
-Sequential run (default):
-    python sweep.py
+Full workflow
+-------------
+1. Generate the job list::
 
-Parallel run with 4 workers:
-    python sweep.py --n-workers 4
+       python sweep_creator.py [--datasets ...] [--algos ...] [--n-seeds N]
 
-Subset example:
-    python sweep.py --datasets cifar10 --algos bp sal --n-seeds 2
+   This writes ``jobs.sh`` in the current directory.
 
-Re-running is safe: finished runs (metrics.json present) are skipped.
+2. Submit as a SLURM array job (snapshots jobs.sh first for reproducibility)::
+
+       bash slurm_submit.sh
+
+   Internally, slurm_submit.sh calls ``sbatch --array=1-N slurm.sh``.
+   Each array task reads its own command from the snapshot and executes it.
+
+3. After all jobs finish, run ``plots.ipynb`` to reproduce the figure.
+
+Notes
+-----
+- ``jobs.sh`` must not exist before running this script (guard against
+  accidental overwrites); delete it manually to regenerate.
+- To run locally instead of on SLURM, use ``sweep.py`` directly.
 """
 
 import argparse
@@ -99,7 +114,7 @@ def main() -> None:
                 proc_calls.append(
                     (
                         f"python {PY_FILE} -f {PARAM_FILE} -s {algo}"
-                        f" --dataset {dataset} --run-dir {run_dir}\n"
+                        f" --dataset {dataset} --seed {seed} --run-dir {run_dir}\n"
                     )
                 )
 

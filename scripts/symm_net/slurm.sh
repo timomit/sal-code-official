@@ -1,21 +1,21 @@
 #!/bin/bash
+# --- HPC cluster specific SLURM settings ------------------------
+# add your settings here.
 #SBATCH --job-name="symmnet sweep"
-#SBATCH --time=10:00:00
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=4G
-#SBATCH --partition=gpu
-#SBATCH --gres=gpu:rtx4090:1
-#SBATCH --account=paygo
-#SBATCH --wckey=pyl_biodl
+#SBATCH --time=<xx:xx:xx>
+#SBATCH ...
+# ----------------------------------------------------------------
 
-# Your code below this line
-module load Anaconda3
-eval "$(conda shell.bash hook)"
+# --- HPC cluster specific setup:---------------------------------
+# e.g. load modules
+# and activate python environment
+# ----------------------------------------------------------------
 
-conda activate ../../envs/
+echo "Start job with id ${SLURM_ARRAY_TASK_ID}."
 
-echo "BLA!"
-
+# read the snapshotted jobs_<timestamp>.sh file
 CMD=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "${JOBS_FILE}")
+echo "Run command ${CMD}"
+# and execute it.
 eval "$CMD"
+echo "Done."
