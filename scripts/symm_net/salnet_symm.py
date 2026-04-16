@@ -56,7 +56,12 @@ parser.add_argument("--group_tags", type=str)
 parser.add_argument(
     "--output-dir", type=str, default="../../results/symm_net", dest="output_dir"
 )
+parser.add_argument("--seed", type=int, default=0)
+parser.add_argument("--run-dir", type=str, default=None, dest="run_dir")
 args = parser.parse_args()
+
+torch.manual_seed(args.seed)
+np.random.seed(args.seed)
 
 params["n_epochs"] = args.n_epochs
 params["len_epoch"] = args.len_epoch
@@ -99,10 +104,14 @@ def append_metric(scalars: dict[str, Any], key: str, value: float) -> None:
 # Run setup
 # ---------------------------
 
-run_dir = create_run_dirs(base_dir=args.output_dir, tags=tags)
+if args.run_dir is not None:
+    run_dir = args.run_dir
+    os.makedirs(os.path.join(run_dir, "figs", "weights"), exist_ok=True)
+else:
+    run_dir = create_run_dirs(base_dir=args.output_dir, tags=tags)
 
 metrics: dict[str, Any] = {
-    "params": params,
+    "params": {**params, "seed": args.seed},
     "scalars": {},
 }
 

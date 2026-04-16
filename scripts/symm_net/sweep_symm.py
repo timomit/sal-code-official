@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Sweep launcher for convenient reproduction of data for SymmNet paper figure
+"""Sweep launcher for pure SAL symmetrization experiments (salnet_symm.py).
 
-Runs dataset × algo × seed combinations.
+Iterates over learning rates × seeds. Each combination is stored in a structured
+directory tree that plot_puresymm.ipynb can read directly.
 
 Sequential run (default):
-    python sweep.py
+    python sweep_symm.py
 
 Parallel run with 4 workers:
-    python sweep.py --n-workers 4
+    python sweep_symm.py --n-workers 4
 
 Subset example:
-    python sweep.py --datasets cifar10 --algos bp sal --n-seeds 2
+    python sweep_symm.py --lrs 0.001 0.01 --n-seeds 2 --n-epochs 10
 
 Finished runs (metrics.json present) are skipped, if sweep is executed again.
 """
@@ -21,10 +22,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-ALL_DATASETS = ["cifar10", "fmnist", "svhn"]
-ALL_ALGOS = ["bp", "fa", "bp_w_fa", "akrout", "scfa", "sal", "rdd"]
-# PARAM_FILE = "exp_settings.yaml"
-PARAM_FILE = "fast_exp.yaml"
+DEFAULT_LRS = [0.01, 0.02, 0.04, 0.08]
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,27 +31,19 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
-        "--datasets",
+        "--lrs",
         nargs="+",
-        default=ALL_DATASETS,
-        choices=ALL_DATASETS,
-        metavar="DS",
-        help="Datasets to run (default: all three).",
-    )
-    p.add_argument(
-        "--algos",
-        nargs="+",
-        default=ALL_ALGOS,
-        choices=ALL_ALGOS,
-        metavar="ALGO",
-        help="Algorithm sections from exp_settings.yaml (default: all seven).",
+        type=float,
+        default=DEFAULT_LRS,
+        metavar="LR",
+        help="Learning rates to sweep (default: 0.01 0.02, 0.04, 0.08).",
     )
     p.add_argument(
         "--n-seeds",
         type=int,
         default=5,
         dest="n_seeds",
-        help="Number of seeds, numbered 0 … N-1 (default: 5).",
+        help="Number of seeds per learning rate, numbered 0 … N-1 (default: 5).",
     )
     p.add_argument(
         "--n-workers",
@@ -64,48 +54,55 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--sweep-name",
-        default="sweep",
+        default="puresymm",
         dest="sweep_name",
-        help="Subdirectory name under --base-dir (default: sweep).",
+        help="Subdirectory name under --base-dir (default: puresymm).",
     )
     p.add_argument(
         "--base-dir",
-        default="../../results/symm_net",
+        default="../../results/symm_net/puresymm",
         dest="base_dir",
-        help="Root output directory (default: ../../results/symm_net).",
+        help="Root output directory (default: ../../results/symm_net/puresymm).",
     )
+    # forwarded to salnet_symm.py
+    p.add_argument("--n-epochs", type=int, default=2000, dest="n_epochs")
+    p.add_argument("--len-epoch", type=int, default=100, dest="len_epoch")
+    p.add_argument("--batchsize", type=int, default=64)
     return p.parse_args()
 
 
 def _run_one(
     run_dir: Path,
-    dataset: str,
-    algo: str,
+    lr: float,
     seed: int,
-    param_file: str,
+    n_epochs: int,
+    len_epoch: int,
+    batchsize: int,
 ) -> tuple[str, int | None]:
-    """Run a single training job.
+    """Run a single salnet_symm.py job.
 
     Returns:
         A (label, returncode) tuple. returncode is None if the run was skipped.
     """
-    label = f"{dataset}/{algo}/seed_{seed}"
+    label = f"lr={lr}/seed_{seed}"
     if (run_dir / "metrics.json").exists():
         return label, None  # already done
     result = subprocess.run(
         [
             sys.executable,
-            "main_salnet.py",
-            "-f",
-            param_file,
-            "-s",
-            algo,
-            "--dataset",
-            dataset,
+            "salnet_symm.py",
             "--seed",
             str(seed),
             "--run-dir",
             str(run_dir),
+            "--lr",
+            str(lr),
+            "--n_epochs",
+            str(n_epochs),
+            "--len_epoch",
+            str(len_epoch),
+            "--batchsize",
+            str(batchsize),
         ],
         check=False,
     )
@@ -115,27 +112,33 @@ def _run_one(
 def main() -> None:
     args = parse_args()
     sweep_dir = Path(args.base_dir) / args.sweep_name
-    total = len(args.datasets) * len(args.algos) * args.n_seeds
+    total = len(args.lrs) * args.n_seeds
 
     print(f"Sweep: {total} runs → {sweep_dir}")
-    print(f"  datasets: {args.datasets}")
-    print(f"  algos: {args.algos}")
+    print(f"  lrs: {args.lrs}")
     print(f"  seeds: 0 … {args.n_seeds - 1}")
     print(f"  workers: {args.n_workers}")
     print()
 
     runs = [
-        (sweep_dir / dataset / algo / f"seed_{seed}", dataset, algo, seed)
-        for dataset in args.datasets
-        for algo in args.algos
+        (sweep_dir / f"lr_{lr}" / f"seed_{seed}", lr, seed)
+        for lr in args.lrs
         for seed in range(args.n_seeds)
     ]
 
     done = 0
     with ThreadPoolExecutor(max_workers=args.n_workers) as pool:
         futures = {
-            pool.submit(_run_one, run_dir, dataset, algo, seed, PARAM_FILE): i
-            for i, (run_dir, dataset, algo, seed) in enumerate(runs)
+            pool.submit(
+                _run_one,
+                run_dir,
+                lr,
+                seed,
+                args.n_epochs,
+                args.len_epoch,
+                args.batchsize,
+            ): i
+            for i, (run_dir, lr, seed) in enumerate(runs)
         }
         for future in as_completed(futures):
             label, code = future.result()
