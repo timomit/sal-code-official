@@ -20,8 +20,7 @@ from pathlib import Path
 
 ALL_DATASETS = ["cifar10", "fmnist", "svhn"]
 ALL_ALGOS = ["bp", "fa", "bp_w_fa", "akrout", "scfa", "sal", "rdd"]
-# PARAM_FILE = "exp_settings.yaml"
-PARAM_FILE = "fast_exp.yaml"
+PARAM_FILE = "exp_settings.yaml"
 PY_FILE = "main_salnet.py"
 JOBS_FILE = "jobs.sh"
 
