@@ -107,7 +107,7 @@ For conveniently reproducing any of the data shown in figure 8, we provide two w
 See `python sweep.py --help` for all available settings.
 - For large scale parameter sweeps (for instance to reproduce the 105 runs for all datasets, algorithms and seeds) on an HPC cluster (with SLURM), we provided the following workflow that needs only minimal adaptation to the available system. 
   1. Run `sweep_creator.py`: It creates `jobs.sh` which contains all `main_salnet.py`-calls with the relevant settings. 
-See `python sweep_creator.py --help` for all available settings.
+See `python sweep_creator.py --help` for all available settings (the default settings will rerun the original simulations).
   2. Modify `slurm.sh` to specify the relevant settings for your HPC cluster.
   3. Run `bash slurm_submit.sh`. It will call `slurm.sh` internally and start a slurm array job. 
   4. The data can be plotted with `scripts/symm_net/plots.ipynb`
@@ -125,16 +125,33 @@ The "Dale's law" experiment can be reproduced by `scripts/dales_law/EI-system.ip
 
 #### Figure 11
 
-The data for figure 7 can be reproached by `scripts/psp_shapes.ipynb`. Note that this notebook typically requires a lot of memory.
+The data for figure 11 can be reproached by `scripts/psp_shapes.ipynb`. Note that this notebook typically requires a lot of memory (> 8GB).
 
 #### Figure 12
 
-Figure 8 can be reproduced by `scripts/plots_for_proof.ipynb`.
+Figure 12 can be reproduced by `scripts/plots_for_proof.ipynb`.
 
 
 ## Tests
 
-TODO description
+The test suite lives in `tests/` and is run with [pytest](https://pytest.org).
+It contains two layers of tests:
+
+**Fast smoke tests** (run automatically in CI, no GPU required):
+```bash
+pytest tests/
+```
+These verify that all four packages import correctly and that `main_salnet.py`, `traim_mc.py` and `train_bm.py` complete a minimal
+run without errors.
+
+**PyTorch training tests** (opt-in, GPU recommended):
+```bash
+pytest tests/ --pytorch                       # bp section only (default)
+pytest tests/ --pytorch --sections bp,fa,sal  # specific subset
+pytest tests/ --pytorch --sections all        # test all seven algorithms 
+```
+These run `main_salnet.py` end-to-end for one epoch per selected algorithm
+section. They are skipped by default because they require PyTorch CNN training.
 
 
 ## Version history
