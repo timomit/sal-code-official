@@ -92,6 +92,7 @@ To reproduce the data and plots for figure 7 (i.e., the weight scatter plots com
 #### Figure 8
 
 A minimal working example for the deep learning experiment is provided by `scripts/symm_net/main_salnet.py` and the corresponding parameter file `exp_setting.yaml`.
+As forward training of the convolutional neural networks is implemented in pytorch, we highly recommend to use a GPU.
 
 Usage: `python main_salnet.py -f exp_setting.yaml -s <type_of_experiment> --dataset <dataset> --tags <tag1,tag2>`
 
@@ -99,9 +100,24 @@ Usage: `python main_salnet.py -f exp_setting.yaml -s <type_of_experiment> --data
 - `dataset`: choose one the following datasets: `cifar10`, `svhn`, `mnist`, `fmnist`
 - optionally, you can pass a list of descriptive tags to keep tack of your runs.
 
+The typical execution time of `main_salnet.py` amounts to ca. 15 minutes for the training modes that do not involve a spiking neural network, in SAL-mode ca 30-45 minutes and in RDD-mode ca. 2 hours.
+
+For conveniently reproducing any of the data shown in figure 8, we provide two workflows:
+- `sweep.py`: suitable for small scale parameter sweeps. It directly launcher the required sub-processes. Example usage: `python sweep.py --datasets cifar10 --algos bp fa sal`.
+See `python sweep.py --help` for all available settings.
+- For large scale parameter sweeps (for instance to reproduce the 105 runs for all datasets, algorithms and seeds) on an HPC cluster (with SLURM), we provided the following workflow that needs only minimal adaptation to the available system. 
+  1. Run `sweep_creator.py`: It creates `jobs.sh` which contains all `main_salnet.py`-calls with the relevant settings. 
+See `python sweep_creator.py --help` for all available settings.
+  2. Modify `slurm.sh` to specify the relevant settings for your HPC cluster.
+  3. Run `bash slurm_submit.sh`. It will call `slurm.sh` internally and start a slurm array job. 
+  4. The data can be plotted with `scripts/symm_net/plots.ipynb`
 #### Figure 9
 
-A minimal working example for the Time evolution of SAL in the SALNet is provided by `scripts/symm_net/salnet_symm.py`.
+A minimal working example for the time evolution of SAL in the SALNet is provided by `scripts/symm_net/salnet_symm.py`.
+
+Example Usage: `python salnet_symm.py --lr 0.01 --n_epochs 200 --len_epoch 500`.
+
+For conveniently reproducing the data shown in figure 9, we provide the same workflows as explained above with the files `sweep_symm.py` for quick small scale scans and `sweep_creator_symm.py` to launch all 20 runs as a slurm array job.
 
 #### Figure 10
 

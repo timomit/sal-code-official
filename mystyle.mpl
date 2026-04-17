@@ -7,6 +7,7 @@
 # use Latex:  (uncomment the following two commands if latex is installed on system)
 # text.usetex: true
 # font.family: serif
+# text.latex.preamble: \usepackage{amssymb}
 
 # text and font and labets etc. settings
 # axes.labelsize: 8
