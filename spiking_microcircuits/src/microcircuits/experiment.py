@@ -53,7 +53,6 @@ class Descriptor(dict):
 class PropertiesDescriptor(Descriptor):
     """Parameter dict with automatic sanity checks on required attributes."""
 
-    # TODO fill all attributes!
     _REQUIRED_ATTR = {}
 
     def __init__(self, **kwargs: Any) -> None:

@@ -9,11 +9,6 @@ from torch import Tensor
 
 from .utils import batched_outer
 
-# TODO: add a non-rolling buffer and an all-at-once stdp rule
-# TODO: maybe register all relevant model params (time constants etc.) as
-# buffers with self.register_buffer?? --> makes it easier to log an entire model
-# for reporducibility
-
 
 class BaseSpikeBuffer(ABC, nn.Module):
     """
@@ -148,7 +143,7 @@ class GLMHiddenLayer(nn.Module):
         self.register_buffer("mem_pot", torch.zeros(batch_size, n_out))
         self.spikes = SimpleSpikeBuffer(
             n_out, buffer_length * t_ref, batch_size=batch_size
-        )  # TODO: change buffer length!
+        )
         self.register_buffer(
             "last_spike_counter", torch.full_like(self.mem_pot, torch.inf)
         )
@@ -165,7 +160,7 @@ class GLMHiddenLayer(nn.Module):
         # initialize params (although they're actually copied from the corresponding ANN)
         nn.init.kaiming_uniform_(self.weight, a=5**0.5)
         nn.init.kaiming_uniform_(self.fb_weight, a=5**0.5)
-        bound = self.n_out**-0.5  # TODO check if this is useful
+        bound = self.n_out**-0.5
         nn.init.uniform_(self.bias, -bound, bound)
 
     def update_mempot(self, bottom_up_spikes: Tensor, top_down_spikes: Tensor) -> None:
@@ -239,7 +234,7 @@ class GLMInputLayer(GLMHiddenLayer):
     def init_params(self) -> None:
         # initialize params (although they're actually copied from the corresponding ANN)
         nn.init.kaiming_uniform_(self.fb_weight, a=5**0.5)
-        bound = self.n_out**-0.5  # TODO check if this is useful
+        bound = self.n_out**-0.5
         nn.init.uniform_(self.bias, -bound, bound)
 
     def update_mempot(self, top_down_spikes: Tensor) -> None:
@@ -276,7 +271,7 @@ class GLMOutputLayer(GLMHiddenLayer):
     def init_params(self) -> None:
         # initialize params (although they're actually copied from the corresponding ANN)
         nn.init.kaiming_uniform_(self.weight, a=5**0.5)
-        bound = self.n_out**-0.5  # TODO check if this is useful
+        bound = self.n_out**-0.5
         nn.init.uniform_(self.bias, -bound, bound)
 
     def update_mempot(self, bottom_up_spikes: Tensor) -> None:
@@ -372,7 +367,7 @@ class SALNetBase(nn.Module):
             self.layers[i].fb_stdp_online(self.layers[i + 1].spikes.get())
 
     def apply_fb_weight_update(self) -> list[Tensor]:
-        dws: list[Tensor] = []  # TODO: for debugging
+        dws: list[Tensor] = []
         for layer in self.layers[:-1]:
             dw = layer.apply_fb_weight_update()
             dws.append(dw)

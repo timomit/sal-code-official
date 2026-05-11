@@ -93,7 +93,6 @@ class ConvNet(nn.Module):
         self.feature_layers.append(nn.MaxPool2d(kernel_size=2, stride=2))
 
         # Flatten features for fully connected layers
-        # TODO: I changed this here! Does it still work??
         self.feature_layers.append(nn.Flatten(start_dim=1))
 
         self.classification_layers = []
