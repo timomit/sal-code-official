@@ -9,7 +9,12 @@ from .rdd_layers import SpikingFA
 
 
 class RDDNetBase:
-    """This is new!"""
+    """Base class for RDD-based spiking networks of arbitrary depth.
+
+    Builds a chain of SpikingFA layers and implements the shared forward pass,
+    reset, and feedback-weight update logic. Subclasses add weight I/O with
+    external PyTorch models (see RDDNet).
+    """
 
     def __init__(self, layer_dims: list[int]) -> None:
         self.n_layers = len(layer_dims)
@@ -23,8 +28,14 @@ class RDDNetBase:
             )
         self.classification_layers.append(SpikingFA(layer_dims[-1], layer_dims[-2]))
 
-    def out(self, *args: npt.NDArray) -> None:
-        """args must be the driving_spike_hist"""
+    def out(self, *args: npt.NDArray | None) -> None:
+        """Update all layers for one timestep given external driving inputs.
+
+        Args:
+            *args: One driving spike history array per non-output layer, i.e.
+                ``len(args) == len(classification_layers) - 1``. Pass ``None``
+                for layers that receive no external drive at this timestep.
+        """
         assert len(args) == len(self.classification_layers) - 1
 
         # Layer 0: receives external drive and feedback from layer 1
@@ -60,35 +71,22 @@ class RDDNetBase:
             layer.update_fb_weights()
 
 
-class RDDNet:
+class RDDNet(RDDNetBase):
     """
     Network composed of multiple SpikingFA layers, each optionally using
     Regression Discontinuity Design (RDD) logic for causal inference of feedback
-    weigts.
+    weights.
 
-    This class provides methods to copy weights between PyTorch layers and
-    the SpikingFA layers, perform sequential updates, and manage feedback weights.
+    Extends RDDNetBase with methods to copy weights between PyTorch layers and
+    the SpikingFA layers.
 
     Attributes:
         classification_layers (list): List of SpikingFA layers representing the network.
-
-    TODO: make this inherit from RDDNetBase!
     """
 
     def __init__(self, layer_dims: list[int]) -> None:
-        """
-        Initializes the RDDNet with a fixed architecture of SpikingFA layers.
-        """
-        self.classification_layers = []
-
-        self.classification_layers.append(SpikingFA(layer_dims[0], None, layer_dims[1]))
-        self.classification_layers.append(
-            SpikingFA(layer_dims[1], layer_dims[0], layer_dims[2])
-        )
-        self.classification_layers.append(
-            SpikingFA(layer_dims[2], layer_dims[1], layer_dims[3])
-        )
-        self.classification_layers.append(SpikingFA(layer_dims[3], layer_dims[2]))
+        """Initializes the RDDNet with SpikingFA layers."""
+        super().__init__(layer_dims)
 
     def copy_weights_from(self, layers: list[nn.Module]) -> None:
         """
@@ -139,53 +137,3 @@ class RDDNet:
         layers[4].fb_weight.data = torch.from_numpy(
             self.classification_layers[2].fb_weight.astype(np.float32).T
         ).to(device)
-
-    def out(
-        self,
-        driving_spike_hist_1: npt.NDArray | None,
-        driving_spike_hist_2: npt.NDArray | None,
-        driving_spike_hist_3: npt.NDArray | None,
-    ) -> None:
-        """
-        Sequentially updates each SpikingFA layer given the driving spike histories
-        and the spike histories of adjacent layers.
-
-        Args:
-            driving_spike_hist_1 (np.ndarray): External driving input for the first layer.
-            driving_spike_hist_2 (np.ndarray): External driving input for the second layer.
-            driving_spike_hist_3 (np.ndarray): External driving input for the third layer.
-        """
-        # Layer 0: receives external drive and feedback from layer 1
-        self.classification_layers[0].update(
-            None,
-            self.classification_layers[1].spike_hist,
-            driving_input=driving_spike_hist_1,
-        )
-        # Layer 1: receives feedforward from layer 0, feedback from layer 2, and external drive
-        self.classification_layers[1].update(
-            self.classification_layers[0].spike_hist,
-            self.classification_layers[2].spike_hist,
-            driving_input=driving_spike_hist_2,
-        )
-        # Layer 2: receives feedforward from layer 1, feedback from layer 3, and external drive
-        self.classification_layers[2].update(
-            self.classification_layers[1].spike_hist,
-            self.classification_layers[3].spike_hist,
-            driving_input=driving_spike_hist_3,
-        )
-        # Layer 3: receives feedforward from layer 2, no feedback, no external drive
-        self.classification_layers[3].update(self.classification_layers[2].spike_hist)
-
-    def reset(self) -> None:
-        """
-        Resets the state of all SpikingFA layers (membrane potentials, spike history, etc.).
-        """
-        for layer in self.classification_layers:
-            layer.reset()
-
-    def update_fb_weights(self) -> None:
-        """
-        Updates the feedback weights in all but the last SpikingFA layer.
-        """
-        for layer in self.classification_layers[:-1]:
-            layer.update_fb_weights()

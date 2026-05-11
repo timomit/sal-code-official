@@ -5,7 +5,7 @@ Versions correspond to arXiv submissions of the paper.
 
 ---
 
-## [v0.3.0-arxiv_v3] - TODO: DATE!
+## [v0.3.0-arxiv_v3] - 2026-05-11
 ### Added
 - Test suite to test main simulation scripts in `tests/`
 - `scripts/symm_net/scatter_stdwi_rdd_sal.ipynb` to reproduce paper figure no. 7

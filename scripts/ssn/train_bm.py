@@ -48,7 +48,6 @@ params_file = outdir / f"{sweep_id:02d}_params.yaml"
 if not params_file.exists():
     with open(params_file, "w") as f:
         yaml.dump(params, f)
-#         FIXME: could this lead to race conditions, if executed at the same time??
 
 print(f"sweep: {sweep_id} seed: {seed_id}")
 print(f"output dir: {outdir}")
